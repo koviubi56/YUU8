@@ -49,7 +49,6 @@ async def on_ready():
 
 @client.command()
 async def ping(ctx):
-    print(str(type(ctx)))
     await ctx.reply("pong!")
 
 
@@ -62,6 +61,13 @@ async def unsplash(ctx, keyword: str):
                     await ctx.reply(r.url)
                 else:
                     await ctx.reply(f"**ERROR!** ({str(r.status_code)} | {str(hash(r.json()))})")
-        await ctx.reply('done!')
+
+
+@client.command()
+async def embed(ctx, title: str, fieldTitle: str, fieldValue: str):
+    async with ctx.typing():
+        embed = discord.Embed(title=title, color=0x7289DA)
+
+        embed.add_field(name=fieldTitle, value=fieldValue)
 
 client.run(os.getenv("BOT_TOKEN"))
