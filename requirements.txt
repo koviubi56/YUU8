@@ -1,5 +1,4 @@
 discord
 requests
-os
 logging
 dotenv
