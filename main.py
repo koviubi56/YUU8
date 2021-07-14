@@ -70,6 +70,6 @@ async def embed(ctx, title: str, fieldTitle: str, fieldValue: str):
 
         embed.add_field(name=fieldTitle, value=fieldValue)
 
-        ctx.send(embed=embed)
+        await ctx.send(embed=embed)
 
 client.run(os.getenv("BOT_TOKEN"))
