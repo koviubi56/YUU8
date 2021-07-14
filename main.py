@@ -19,14 +19,20 @@ import os
 import logging
 import discord  # noqa
 from discord.ext import commands
-from dotenv import load_dotenv
+try:
+    from dotenv import load_dotenv
+except ImportError:
+    pass
 
 logging.basicConfig(level=21,
                     format="[%(levelname)s %(name)s] %(message)s")
 logging = logging.getLogger(__name__)  # noqa
 print("Loading...")
 
-load_dotenv()
+try:
+    load_dotenv()
+except Exception:
+    pass
 
 client = commands.Bot(
     command_prefix=".", description="A cool discord bot", owner_id=510548663496474660)
