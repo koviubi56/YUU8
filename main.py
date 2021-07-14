@@ -17,7 +17,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import os
 import logging
-import discord  # noqa
+import discord
 import aiohttp
 from discord.ext import commands
 try:
