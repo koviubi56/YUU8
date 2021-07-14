@@ -18,6 +18,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import os
 import logging
 import discord  # noqa
+import aiohttp
 from discord.ext import commands
 try:
     from dotenv import load_dotenv
@@ -35,7 +36,10 @@ except Exception:
     pass
 
 client = commands.Bot(
-    command_prefix=".", description="A cool discord bot", owner_id=510548663496474660)
+    command_prefix=".",
+    description="A cool discord bot",
+    owner_id=510548663496474660
+)
 
 
 @client.event
@@ -45,6 +49,19 @@ async def on_ready():
 
 @client.command()
 async def ping(ctx):
-    await ctx.send("pong!")
+    print(str(type(ctx)))
+    await ctx.reply("pong!")
+
+
+@client.command()
+async def unsplash(ctx, keyword: str):
+    async with ctx.typing():
+        async with aiohttp.ClientSession() as session:
+            async with session.get(f'https://source.unsplash.com/featured/?{keyword}', timeout=15) as r:
+                if r.ok:
+                    await ctx.reply(r.url)
+                else:
+                    await ctx.reply(f"**ERROR!** ({str(r.status_code)} | {str(hash(r.json()))})")
+        await ctx.reply('done!')
 
 client.run(os.getenv("BOT_TOKEN"))
