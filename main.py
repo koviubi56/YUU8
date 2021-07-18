@@ -134,7 +134,7 @@ async def ping(ctx: commands.Context):
 
         # embed
         embed = myEmbed(
-            desc=f"The response time",
+            desc="The response time",
             title="Ping"
         )
 
