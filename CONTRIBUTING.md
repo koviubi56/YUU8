@@ -13,7 +13,7 @@ Please, **don't** open an issue for questions. [Ask it here!](https://github.com
 * Fill issue templates, use labels.
 * If you are making a not small pull request, create an issue first, with the *Issue before pr* label.
 * Read the [code of conduct](CODE_OF_CONDUCT.md).
-* [Run tests](https://github.com/koviubi56/YUU8/blob/main/.travis.yml#L12-L13). <!-- TODO: Check this -->
+* [Run tests](https://github.com/koviubi56/YUU8/blob/main/.travis.yml#L12).
 * Search open **and closed** issues **and** pull requests.
 
 ## Pull requests

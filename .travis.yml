@@ -1,0 +1,12 @@
+language: python
+os: Trusty
+python:
+  - "3.9"
+cache: pip
+before_install:
+  - pip install --upgrade pip
+install:
+  - if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+  - pip install flake8
+script:
+  - python -m flake8 --count --show-source --statistics --ignore E501,E741,W291
