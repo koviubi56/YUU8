@@ -174,11 +174,11 @@ async def unsplash(ctx: commands.Context, keyword: str):
 
 
 @client.command()
-async def embed(ctx: commands.Context, title: str, fieldTitle: str, fieldValue: str):
+async def embed(ctx: commands.Context, title: str, fieldTitle: str, *fieldValue: str):
     async with ctx.typing():
         embed = myEmbed(title=title)
 
-        embed.add_field(name=fieldTitle, value=fieldValue)
+        embed.add_field(name=fieldTitle, value=" ".join(fieldValue) if isinstance(fieldValue, tuple) else fieldValue)
 
     await ctx.reply(embed=embed)
     return
