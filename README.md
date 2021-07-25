@@ -11,4 +11,4 @@ YUU8 is yet another general purpose discord bot.
 * Create custom embeds (`.embed <TITLE> <FIELD TITLE/NAME> <FIELD VALUE>`)
 * Let users suggest something (`.suggest <SUGGESTION>`, `.set_suggestion_channel <CHANNEL>`)
 
-Tge bot is in (pre) alpha/beta so there will be [new features](https://github.com/koviubi56/YUU8/projects/1#column-15140296)!
+The bot is in (pre) alpha/beta so there will be [new features](https://github.com/koviubi56/YUU8/projects/1#column-15140296)!
