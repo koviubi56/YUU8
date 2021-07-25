@@ -19,16 +19,15 @@ import discord
 import aiohttp
 
 from os import getenv
-from typing import Any
+from typing import Optional, Union
 from discord.ext import commands
 from datetime import datetime
 from time import time
+
 try:
     from dotenv import load_dotenv
 except ImportError:
     pass
-
-# /# ! \s+ V+/
 
 if __name__ == "__main__":
     print("Loading...")
@@ -44,15 +43,18 @@ client = commands.Bot(
     owner_id=510548663496474660
 )
 
+# TODO: Turn this OFF
+DEBUG = True
+
 
 class mydb:
 
-    def get() -> Any:
+    def get() -> dict:
         """
-        Get something or everything from the database
+        Get the database
 
         Returns:
-            Any: What you want
+            dict: The database
         """
         import db
         del db
@@ -80,7 +82,7 @@ assert isinstance(
 
 class color:
     WHITE = 0xFFFFFF
-    BLACH = 0x000000
+    BLACK = 0x000000
 
     RED = 0xFF0000
     DISCORDRED = 0xED4245
@@ -106,12 +108,46 @@ class color:
     DISCORDFUCHSIA = 0xEB459E
 
 
-def myEmbed(desc=None, title=None, color=color.BLURPLE):
-    if title:
-        return discord.Embed(color=color, description=desc,
-                             timestamp=datetime.now(), title=title)
-    return discord.Embed(color=color, description=desc,
-                         timestamp=datetime.now())
+class urls:
+    # TODO: Don't forget to change these links if needed!
+    # There are no unnecessary URLs here.
+    class issue:
+        # https://github.com/koviubi56/YUU8/issues/new?assignees=&labels=Type%3A+Bug&template=bug_report.md&title=
+        BUG = "https://yerl.org/If5za9uTZntiwQmVXdVugX"
+
+    class file:
+        # https://github.com/koviubi56/YUU8/blob/main/CONTRIBUTORS
+        CONTRIBUTORS = "https://yerl.org/eRL8uhfAvPIB19CfxUOLlj"
+
+
+def myEmbed(desc: Optional[str] = None, title: Optional[str] = None, color: Optional[int] = color.BLURPLE, footer: Optional[str] = None) -> discord.Embed:
+    """
+    **Don't forget to await! (Not this function)**
+    Create an embed
+
+    Args:
+        desc (str, optional): The embed's description. Defaults to None.
+        title (str, optional): The embed's title. Defaults to None.
+        color (int, optional): The embed's color. Defaults to color.BLURPLE.
+        footer (str, optional): The embed's footer. Defaults to None.
+
+    Returns:
+        discord.Embed: The embed
+    """
+    embed = discord.Embed(color=color, description=desc, timestamp=datetime.now(
+    ), title=title) if title else discord.Embed(color=color, description=desc, timestamp=datetime.now())
+    if footer:
+        embed.set_footer(text=footer)
+    return embed
+
+
+class MyParameter:
+    def __init__(self, name) -> None:
+        self.myname = name
+
+    @property
+    def name(self) -> str:
+        return str(self.myname)
 
 
 @client.event
@@ -178,7 +214,8 @@ async def embed(ctx: commands.Context, title: str, fieldTitle: str, *fieldValue:
     async with ctx.typing():
         embed = myEmbed(title=title)
 
-        embed.add_field(name=fieldTitle, value=" ".join(fieldValue) if isinstance(fieldValue, tuple) else fieldValue)
+        embed.add_field(name=fieldTitle, value=" ".join(
+            fieldValue) if isinstance(fieldValue, tuple) else fieldValue)
 
     await ctx.reply(embed=embed)
     return
@@ -187,14 +224,8 @@ async def embed(ctx: commands.Context, title: str, fieldTitle: str, *fieldValue:
 @client.command()
 @commands.has_permissions(manage_channels=True)
 async def set_suggestion_channel(ctx: commands.Context,
-                                 channel: discord.TextChannel = None):
+                                 channel: discord.TextChannel):
     # * Checks MUST be OUTSIDE of "async with ctx.typing()"
-    if channel is None:
-        # !                                            VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV
-        embed = myEmbed(
-            desc="What to be the suggestion channel?\n`.set_suggestion_channel <CHANNEL>`")
-        await ctx.reply(embed=embed)
-        return
     async with ctx.typing():
         tmp = {}
         # Get DB
@@ -205,7 +236,8 @@ async def set_suggestion_channel(ctx: commands.Context,
         # set channel
         tmp[ctx.guild.id]["suggestion_chn"] = channel.id
         mydb.set(tmp)
-        tmp = myEmbed(desc="Done!", color=color.OKGREEN)
+        tmp = myEmbed(
+            desc=f"Set suggestion channel to {str(channel)}!", color=color.OKGREEN)
     await ctx.reply(embed=tmp)
     return
 
@@ -214,12 +246,6 @@ async def set_suggestion_channel(ctx: commands.Context,
 async def suggest(ctx: commands.Context,
                   *suggestion: str):
     # * Checks MUST be OUTSIDE of "async with ctx.typing()"
-    if suggestion is None or suggestion == "" or suggestion == () or len(suggestion) <= 0:
-        # !                                       VVVVVVVVVVVVVVVVVVVVV
-        embed = myEmbed(
-            desc="What are you want to suggest?\n`.suggest <SUGGESTION>`", color=color.RED)
-        await ctx.reply(embed=embed)
-        return
     async with ctx.typing():
         if ctx.guild.id in mydb.get() and "suggestion_chn" in mydb.get()[ctx.guild.id]:
             chn = await client.fetch_channel(
@@ -228,9 +254,10 @@ async def suggest(ctx: commands.Context,
                 embed = myEmbed(desc=suggestion if isinstance(
                     suggestion, str) else " ".join(suggestion))
             except Exception:
-                embed = myEmbed(desc=suggestion)
-                embed.set_footer(
-                    text="There was an error when we wanted to create this embed.")
+                embed = myEmbed(
+                    desc=suggestion, footer="There was an error when we wanted to create this embed. Please report every bug at {}".format(
+                        urls.issue.BUG
+                    ))
 
             msg = await chn.send(embed=embed)
             await msg.add_reaction("⬆️")
@@ -241,6 +268,80 @@ async def suggest(ctx: commands.Context,
                             color=color.RED)
             await ctx.reply(embed=embed)
             return
+
+
+@client.command()
+async def debug(ctx: commands.Context):
+    raise Exception(
+        f"Debug exception was made by {str(ctx.author)} / {ctx.author.id}")
+
+
+@client.command()
+@commands.has_permissions(kick_members=True)
+async def kick(ctx: commands.Context, user: Union[discord.User, int], *reason: str):
+    try:
+        if user == client.user:
+            await ctx.reply(embed=myEmbed(
+                desc="After all my good work *this* is how you reward me? What a disgrace.", color=color.ORANGE))
+            return
+        if reason == ():
+            raise commands.MissingRequiredArgument(MyParameter("reason"))
+        if isinstance(reason, (tuple, list, set)):
+            reason = " ".join(reason)
+        if isinstance(user, int):
+            user = await client.fetch_user(user)
+        await user.kick(reason=reason)
+    except Exception:
+        raise
+    else:
+        tmp = mydb.get()
+        if tmp.get(user.id) is None:
+            tmp[user.id] = {}
+        if tmp[user.id].get("punishments") is None:
+            tmp[user.id]["punishments"] = []
+        tmp[user.id]["punishments"].append({
+            "type": "kick",
+            "moderator": ctx.author.id,
+            "reason": " ".join(reason) if isinstance(reason, tuple) else reason,
+            "time": datetime.now().timestamp()
+        })
+        mydb.set()
+        await ctx.reply(embed=myEmbed(
+            desc=f"Kicked {str(user)} for reason `{reason}`!", color=color.OKGREEN))
+
+backslashn = "\n"
+
+
+@client.event
+async def on_command_error(ctx: commands.Context, error: commands.errors.CommandError):
+    if isinstance(error, commands.MissingPermissions):
+        await ctx.reply(embed=myEmbed(desc="Sorry, but you don't have permissions for that.", color=color.RED))
+    elif isinstance(error, commands.MissingRequiredArgument):
+        await ctx.reply(embed=myEmbed(desc=error.args[0].capitalize(), color=color.RED))
+    else:
+        # Check for sensitive information
+        for j in (error.__class__.__name__, error.__class__, error.args):
+            if str(j).find(getenv("BOT_TOKEN")) != -1:
+                # Set text
+                tmp = f"""Something went wrong!
+For security reasons, we can't say more.
+Please, open an issue here: {urls.issue.BUG}.
+Include, that we can't say details for security reasons!"""
+                break
+        else:
+            # Set text
+            tmp = f"""Something went wrong!
+Error: `{error.__class__.__name__}`
+If you think that this is an error that we can fix, open an issue here: {urls.issue.BUG} and include this:
+```py
+{error.__class__ = }
+{error.__cause__ = }{backslashn + str(error.args) if DEBUG else ""}
+```
+If you help us, you will be in the CONTRIBUTORS file ({urls.file.CONTRIBUTORS})"""
+        # Send
+        await ctx.reply(embed=myEmbed(desc=tmp, color=color.RED, footer="Please, do not abuse with these informations!"))
+        if DEBUG:
+            raise error.__cause__
 
 
 def main():
