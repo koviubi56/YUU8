@@ -8,13 +8,6 @@ assignees: ''
 ---
 
 # Bug report
-<!--
-##### VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV #####
->>> ! If you want big changes, new features, please, open  ! <<<
->>> ! an issue first (with the "issue before pr" label),   ! <<<
->>> ! to avoid waste of time!                              ! <<<
-##### AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA #####
--->
 ## The bug
 
 
