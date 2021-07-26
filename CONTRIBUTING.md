@@ -14,6 +14,7 @@ Pollbot8 is an open source project and we love to receive contributions from our
 * Search open **and closed** issues **and** pull requests.
 * Please, **don't** open an issue for questions. [Ask it here!](https://github.com/koviubi56/YUU8/discussions/categories/q-a)
 * [#bringbackblurple](https://www.reddit.com/r/discordapp/comments/n9tb4j/bringbackblurple/), so forget about [#5865F2](http://coolors.co/5865F2)
+* Make sure to put an X to the square brackets at the end of the issue, if you read the contributing guidlines, and the code of conduct. **If you don't put an X to all of them, your issue will be closed!**
 
 ## Pull requests
 * Note the [Code of Conduct](CODE_OF_CONDUCT.md). 
@@ -35,6 +36,7 @@ Pollbot8 is an open source project and we love to receive contributions from our
 ### Medium
 * Bug fixes that fix errors that maked a part of the bot buggy/unuseable (**not** typos).
 * New features
+* Report hackers/bad people
 ### High
 * Bug fixes that fix errors that maked the whole bot buggy/unuseable.
 * Security vulnerabilities
