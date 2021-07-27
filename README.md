@@ -8,7 +8,10 @@ YUU8 is yet another general purpose discord bot.
 
 ## It can do
 * Search on Unsplash (`.unsplash <KEYWORD>`)
-* Create custom embeds (`.embed <TITLE> <FIELD TITLE/NAME> <FIELD VALUE>`)
+* Report people (`.report <USER> <REASON>`, `.set_report_channel <CHANNEL>`)
+* Kick (`.kick <USER> <REASON>`)
 * Let users suggest something (`.suggest <SUGGESTION>`, `.set_suggestion_channel <CHANNEL>`)
+<!-- ! This MUST be the last one -->
+* Create custom embeds (`.embed <TITLE> <FIELD TITLE/NAME> <FIELD VALUE>`)
 
 The bot is in (pre) alpha/beta so there will be [new features](https://github.com/koviubi56/YUU8/projects/1#column-15140296)!

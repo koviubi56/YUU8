@@ -335,6 +335,42 @@ async def clear(ctx: commands.Context, *args, **kwargs):
     except Exception:
         await ctx.reply(embed=myEmbed(desc="Something went wrong.\nDo you passed the max parameter? Is it an integer number that is bigger than zero?\n`.clear <MAX>`", color=color.RED, footer=IFERROR))
 
+
+@client.command()
+@commands.has_permissions(manage_channels=True)
+async def set_report_channel(ctx: commands.Context,
+                             channel: discord.TextChannel):
+    if testUser(ctx.author):
+        return
+    # check is there a dict for server
+    if db.get(ctx.guild.id) is False:
+        db.set(str(ctx.guild.id), {})
+    tmp = db.get(str(ctx.guild.id))
+    # set channel
+    tmp["report_chn"] = channel.id
+    db.set(str(ctx.guild.id), tmp)
+    await ctx.reply(embed=myEmbed(desc=f"Set report channel to {str(channel)}!", color=color.OKGREEN))
+
+
+@client.command()
+async def report(ctx: commands.Context, user: discord.User, *reason):
+    if testUser(ctx.author):
+        return
+    if db.get(str(ctx.guild.id)) is False or db.get(str(ctx.guild.id)).get("report_chn") is None:
+        await ctx.reply(embed=myEmbed(desc="This server isn't have a report channel", color=color.RED))
+        return
+    if reason is None or reason == "" or reason == " " or reason == ():
+        raise commands.MissingRequiredArgument(MyParameter("reason"))
+    chn = await client.fetch_channel(
+        db.get(str(ctx.guild.id))["report_chn"])
+
+    await chn.send(embed=myEmbed(title="Report", desc="Report by: {report_by}\nReported user: {reported_user}\nReason: {reason}".format(
+        report_by=str(ctx.author),
+        reported_user=str(user),
+        reason=" ".join(reason) if isinstance(
+            reason, tuple) else reason
+    )))
+
 backslashn = "\n"
 
 
