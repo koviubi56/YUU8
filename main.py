@@ -318,7 +318,7 @@ async def purge(ctx: commands.Context, max: int):
     if int(max) >= 255 and ctx.author.id not in db.get("PURGE_LIMIT"):
         await ctx.reply(embed=myEmbed(desc=f"> Don't delete the whole channel\n- YUU8\n*(If you want to delete a lot of messages, contact the developers at {urls.issue.BLANK})*", color=color.ORANGE, footer=f"Report hackers/bad people at {urls.issue.HACKER} and they get banned from using this bot."))
         return
-    tmp = await ctx.channel.purge(limit=int(max)+1)
+    tmp = await ctx.channel.purge(limit=int(max) + 1)
     # *                                                                  This is important because if the user WANTS to delete lots of messages, then it should be yellow
     # *                                                                                                             VVVVVVVV
     await ctx.channel.send(embed=myEmbed(desc=f"{str(len(tmp))} messages have been deleted", color=color.OKGREEN if int(max) < 255 else color.YELLOW, footer=f"This user have been reached the purge limit! Report hackers/bad people at {urls.issue.HACKER} and they get banned from using this bot." if len(tmp) >= 255 else "This message will be automaticly deleted after 5 seconds."), delete_after=5.0)
