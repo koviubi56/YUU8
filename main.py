@@ -17,6 +17,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import discord
 import aiohttp
+import pickledb
 
 from os import getenv
 from typing import Optional, Union
@@ -45,39 +46,7 @@ client = commands.Bot(
 
 # TODO: Turn this OFF
 DEBUG = True
-
-
-class mydb:
-
-    def get() -> dict:
-        """
-        Get the database
-
-        Returns:
-            dict: The database
-        """
-        import db
-        del db
-        import db
-
-        tmp = db.db
-        while not isinstance(tmp, dict):
-            tmp = tmp.db
-        return tmp
-
-    def set(what: dict) -> None:
-        """
-        Set the whole databse
-
-        Args:
-            what (dict): What to set it to
-        """
-        with open("db.py", "w") as f:
-            f.write("db = " + str(what))
-
-
-assert isinstance(
-    mydb.get(), dict), f"db.get() returned {type(mydb.get())}, and not dict"
+db = pickledb.load('database.db', True)
 
 
 class color:
@@ -114,10 +83,17 @@ class urls:
     class issue:
         # https://github.com/koviubi56/YUU8/issues/new?assignees=&labels=Type%3A+Bug&template=bug_report.md&title=
         BUG = "https://yerl.org/If5za9uTZntiwQmVXdVugX"
+        # https://github.com/koviubi56/YUU8/issues/new
+        BLANK = "https://yerl.org/9TwySiyYmZoSCHsiXYb90t"
+        # https://github.com/koviubi56/YUU8/issues/new?assignees=&labels=Priority%3A+Medium&template=report-bad-user.md&title=
+        HACKER = "https://yerl.org/eCPRDRalWRL5e8mqn8bRKD"
 
     class file:
         # https://github.com/koviubi56/YUU8/blob/main/CONTRIBUTORS
         CONTRIBUTORS = "https://yerl.org/eRL8uhfAvPIB19CfxUOLlj"
+
+
+IFERROR = f"If you think this is an error, report it at {urls.issue.BUG}"
 
 
 def myEmbed(desc: Optional[str] = None, title: Optional[str] = None, color: Optional[int] = color.BLURPLE, footer: Optional[str] = None) -> discord.Embed:
@@ -134,8 +110,17 @@ def myEmbed(desc: Optional[str] = None, title: Optional[str] = None, color: Opti
     Returns:
         discord.Embed: The embed
     """
-    embed = discord.Embed(color=color, description=desc, timestamp=datetime.now(
-    ), title=title) if title else discord.Embed(color=color, description=desc, timestamp=datetime.now())
+    if title and desc:
+        embed = discord.Embed(color=color, description=desc,
+                              timestamp=datetime.now(), title=title)
+    elif title and not desc:
+        embed = discord.Embed(
+            color=color, timestamp=datetime.now(), title=title)
+    elif not title and desc:
+        embed = discord.Embed(color=color, description=desc,
+                              timestamp=datetime.now())
+    elif not title and not desc:
+        embed = discord.Embed(color=color, timestamp=datetime.now())
     if footer:
         embed.set_footer(text=footer)
     return embed
@@ -148,6 +133,13 @@ class MyParameter:
     @property
     def name(self) -> str:
         return str(self.myname)
+
+
+def testUser(user: discord.User) -> bool:
+    if db.get("BANNED_USERS") is False:
+        raise Exception('db.get("BANNED_USERS") is {}'.format(
+            db.get("BANNED_USERS")))
+    return user.id in db.get("BANNED_USERS")
 
 
 @client.event
@@ -166,112 +158,108 @@ async def ping(ctx: commands.Context):
         float(ctx.message.created_at.timestamp())
     """
 
-    async with ctx.typing():
+    if testUser(ctx.author):
+        return
 
-        # embed
-        embed = myEmbed(
-            desc="The response time",
-            title="Ping"
-        )
+    # embed
+    embed = myEmbed(
+        desc="The response time",
+        title="Ping"
+    )
 
-        embed.add_field(name="Ping by Discord",
-                        value=f"{client.latency:.2f} s/{client.latency * 1000:.2f} ms",
-                        inline=False)
+    embed.add_field(name="Ping by Discord",
+                    value=f"{client.latency:.2f} s/{client.latency * 1000:.2f} ms",
+                    inline=False)
 
+    dbping = 0
+    for _ in range(100):
+        old = time()
+        db.getall()
+        dbping += time() - old
+    try:
+        dbping = dbping / 100
+    except ZeroDivisionError:
         dbping = 0
-        for _ in range(100):
-            old = time()
-            dbping += time() - old
-        try:
-            dbping = dbping / 100_000
-        except ZeroDivisionError:
-            dbping = 0
-        embed.add_field(name="Database latency",
-                        value=f"{dbping / 1000}s/{dbping}ms",
-                        inline=False)
+    embed.add_field(name="Database latency",
+                    value=f"{dbping / 1000:f}s/{dbping:f}ms",
+                    inline=False)
 
     # send
     await ctx.send(embed=embed)
-    return
 
 
 @client.command()
 async def unsplash(ctx: commands.Context, keyword: str):
+    if testUser(ctx.author):
+        return
     async with ctx.typing():
         async with aiohttp.ClientSession() as session:
             async with session.get(f'https://source.unsplash.com/featured/?{keyword}',
                                    timeout=10) as r:
                 if r.ok:
                     await ctx.reply(r.url)
-                    return
                 else:
                     await ctx.reply(f"**ERROR!** ({str(r.status_code)} | {str(hash(r.json()))})")
-                    return
 
 
 @client.command()
 async def embed(ctx: commands.Context, title: str, fieldTitle: str, *fieldValue: str):
-    async with ctx.typing():
-        embed = myEmbed(title=title)
+    if testUser(ctx.author):
+        return
+    embed = myEmbed(title=title)
 
-        embed.add_field(name=fieldTitle, value=" ".join(
-            fieldValue) if isinstance(fieldValue, tuple) else fieldValue)
+    embed.add_field(name=fieldTitle, value=" ".join(
+        fieldValue) if isinstance(fieldValue, tuple) else fieldValue)
 
     await ctx.reply(embed=embed)
-    return
 
 
 @client.command()
 @commands.has_permissions(manage_channels=True)
 async def set_suggestion_channel(ctx: commands.Context,
                                  channel: discord.TextChannel):
-    # * Checks MUST be OUTSIDE of "async with ctx.typing()"
-    async with ctx.typing():
-        tmp = {}
-        # Get DB
-        tmp = mydb.get()
-        # check is there a dict for server
-        if tmp.get(ctx.guild.id) is None:
-            tmp[ctx.guild.id] = {}
-        # set channel
-        tmp[ctx.guild.id]["suggestion_chn"] = channel.id
-        mydb.set(tmp)
-        tmp = myEmbed(
-            desc=f"Set suggestion channel to {str(channel)}!", color=color.OKGREEN)
-    await ctx.reply(embed=tmp)
-    return
+    if testUser(ctx.author):
+        return
+    # check is there a dict for server
+    if db.get(ctx.guild.id) is False:
+        db.set(str(ctx.guild.id), {})
+    tmp = db.get(str(ctx.guild.id))
+    # set channel
+    tmp["suggestion_chn"] = channel.id
+    db.set(str(ctx.guild.id), tmp)
+    await ctx.reply(embed=myEmbed(desc=f"Set suggestion channel to {str(channel)}!", color=color.OKGREEN))
 
 
 @client.command()
 async def suggest(ctx: commands.Context,
                   *suggestion: str):
-    # * Checks MUST be OUTSIDE of "async with ctx.typing()"
-    async with ctx.typing():
-        if ctx.guild.id in mydb.get() and "suggestion_chn" in mydb.get()[ctx.guild.id]:
-            chn = await client.fetch_channel(
-                mydb.get()[ctx.guild.id]["suggestion_chn"])
-            try:
-                embed = myEmbed(desc=suggestion if isinstance(
-                    suggestion, str) else " ".join(suggestion))
-            except Exception:
-                embed = myEmbed(
-                    desc=suggestion, footer="There was an error when we wanted to create this embed. Please report every bug at {}".format(
-                        urls.issue.BUG
-                    ))
+    if testUser(ctx.author):
+        return
+    if db.get(str(ctx.guild.id)) is not False and "suggestion_chn" in db.get(str(ctx.guild.id)):
+        chn = await client.fetch_channel(
+            db.get(str(ctx.guild.id))["suggestion_chn"])
+        try:
+            embed = myEmbed(desc=suggestion if isinstance(
+                suggestion, str) else " ".join(suggestion))
+        except Exception:
+            embed = myEmbed(
+                desc=suggestion, footer="There was an error when we wanted to create this embed. Please report every bug at {}".format(
+                    urls.issue.BUG
+                ))
 
-            msg = await chn.send(embed=embed)
-            await msg.add_reaction("⬆️")
-            await msg.add_reaction("⬇️")
-            return
-        else:
-            embed = myEmbed(desc="There isn't a suggestion channel for this server.",
-                            color=color.RED)
-            await ctx.reply(embed=embed)
-            return
+        msg = await chn.send(embed=embed)
+        await msg.add_reaction("⬆️")
+        await msg.add_reaction("⬇️")
+    else:
+        embed = myEmbed(desc="There isn't a suggestion channel for this server.",
+                        color=color.RED)
+        await ctx.reply(embed=embed)
 
 
 @client.command()
 async def debug(ctx: commands.Context):
+    if testUser(ctx.author):
+        return
     raise Exception(
         f"Debug exception was made by {str(ctx.author)} / {ctx.author.id}")
 
@@ -279,10 +267,13 @@ async def debug(ctx: commands.Context):
 @client.command()
 @commands.has_permissions(kick_members=True)
 async def kick(ctx: commands.Context, user: Union[discord.User, int], *reason: str):
+    if testUser(ctx.author):
+        return
     try:
         if user == client.user:
             await ctx.reply(embed=myEmbed(
-                desc="After all my good work *this* is how you reward me? What a disgrace.", color=color.ORANGE))
+                desc="After all my good work *this* is how you reward me? What a disgrace.",
+                color=color.ORANGE))
             return
         if reason == ():
             raise commands.MissingRequiredArgument(MyParameter("reason"))
@@ -294,30 +285,71 @@ async def kick(ctx: commands.Context, user: Union[discord.User, int], *reason: s
     except Exception:
         raise
     else:
-        tmp = mydb.get()
-        if tmp.get(user.id) is None:
-            tmp[user.id] = {}
-        if tmp[user.id].get("punishments") is None:
-            tmp[user.id]["punishments"] = []
-        tmp[user.id]["punishments"].append({
+        tmp = db.get(str(user.id)) if db.get(
+            str(user.id)) is not False else {}
+        if tmp.get("punishments") is None:
+            tmp["punishments"] = []
+        tmp["punishments"].append({
             "type": "kick",
             "moderator": ctx.author.id,
             "reason": " ".join(reason) if isinstance(reason, tuple) else reason,
             "time": datetime.now().timestamp()
         })
-        mydb.set()
+        db.set(str(user.id), tmp)
         await ctx.reply(embed=myEmbed(
-            desc=f"Kicked {str(user)} for reason `{reason}`!", color=color.OKGREEN))
+            desc="Kicked {} for reason `{}`!".format(
+                str(user),
+                tmp["punishments"][len(tmp["punishments"]) - 1]["reason"]
+            ), color=color.OKGREEN))
+
+
+@commands.cooldown(3, 10, commands.BucketType.user)
+@commands.has_permissions(manage_messages=True)
+@client.command()
+async def purge(ctx: commands.Context, max: int):
+    if testUser(ctx.author):
+        return
+    try:
+        int(max)
+    except Exception:
+        await ctx.reply(embed=myEmbed(desc="Max must be an integer number.", color=color.RED, footer=IFERROR))
+        return
+    # 255 is a nice number. There isn't (or i don't know of) any type of API limitation, that is 255. It's just a nice number.
+    if int(max) >= 255 and ctx.author.id not in db.get("PURGE_LIMIT"):
+        await ctx.reply(embed=myEmbed(desc=f"> Don't delete the whole channel\n- YUU8\n*(If you want to delete a lot of messages, contact the developers at {urls.issue.BLANK})*", color=color.ORANGE, footer=f"Report hackers/bad people at {urls.issue.HACKER} and they get banned from using this bot."))
+        return
+    tmp = await ctx.channel.purge(limit=int(max)+1)
+    # *                                                                  This is important because if the user WANTS to delete lots of messages, then it should be yellow
+    # *                                                                                                             VVVVVVVV
+    await ctx.channel.send(embed=myEmbed(desc=f"{str(len(tmp))} messages have been deleted", color=color.OKGREEN if int(max) < 255 else color.YELLOW, footer=f"This user have been reached the purge limit! Report hackers/bad people at {urls.issue.HACKER} and they get banned from using this bot." if len(tmp) >= 255 else "This message will be automaticly deleted after 5 seconds."), delete_after=5.0)
+
+
+@commands.cooldown(3, 10, commands.BucketType.user)
+@commands.has_permissions(manage_messages=True)
+@client.command()
+async def clear(ctx: commands.Context, *args, **kwargs):
+    if testUser(ctx.author):
+        return
+    try:
+        await purge(ctx, *args, **kwargs)
+    except Exception:
+        await ctx.reply(embed=myEmbed(desc="Something went wrong.\nDo you passed the max parameter? Is it an integer number that is bigger than zero?\n`.clear <MAX>`", color=color.RED, footer=IFERROR))
 
 backslashn = "\n"
 
 
 @client.event
 async def on_command_error(ctx: commands.Context, error: commands.errors.CommandError):
-    if isinstance(error, commands.MissingPermissions):
+    if testUser(ctx.author):
+        return
+    if isinstance(error, commands.CommandNotFound):
+        return
+    elif isinstance(error, commands.MissingPermissions):
         await ctx.reply(embed=myEmbed(desc="Sorry, but you don't have permissions for that.", color=color.RED))
     elif isinstance(error, commands.MissingRequiredArgument):
-        await ctx.reply(embed=myEmbed(desc=error.args[0].capitalize(), color=color.RED))
+        await ctx.reply(embed=myEmbed(desc=error.args[0].capitalize(), color=color.RED, footer="Please, do not abuse with these informations!"))
+    elif isinstance(error, commands.BadArgument):
+        await ctx.reply(embed=myEmbed(desc=error.args[0], color=color.RED, footer="Please, do not abuse with these informations!"))
     else:
         # Check for sensitive information
         for j in (error.__class__.__name__, error.__class__, error.args):
@@ -340,8 +372,9 @@ If you think that this is an error that we can fix, open an issue here: {urls.is
 If you help us, you will be in the CONTRIBUTORS file ({urls.file.CONTRIBUTORS})"""
         # Send
         await ctx.reply(embed=myEmbed(desc=tmp, color=color.RED, footer="Please, do not abuse with these informations!"))
-        if DEBUG:
-            raise error.__cause__
+        raise error.__cause__
+    if DEBUG:
+        raise error.__cause__
 
 
 def main():
