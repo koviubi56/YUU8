@@ -220,14 +220,18 @@ async def set_suggestion_channel(ctx: commands.Context,
                                  channel: discord.TextChannel):
     if testUser(ctx.author):
         return
-    # check is there a dict for server
-    if db.get(ctx.guild.id) is False:
-        db.set(str(ctx.guild.id), {})
-    tmp = db.get(str(ctx.guild.id))
-    # set channel
-    tmp["suggestion_chn"] = channel.id
-    db.set(str(ctx.guild.id), tmp)
-    await ctx.reply(embed=myEmbed(desc=f"Set suggestion channel to {str(channel)}!", color=color.OKGREEN))
+    try:
+        # check is there a dict for server
+        if db.get(ctx.guild.id) is False:
+            db.set(str(ctx.guild.id), {})
+        tmp = db.get(str(ctx.guild.id))
+        # set channel
+        tmp["suggestion_chn"] = channel.id
+        db.set(str(ctx.guild.id), tmp)
+    except Exception:
+        raise
+    else:
+        await ctx.reply(embed=myEmbed(desc=f"Set suggestion channel to {str(channel)}!", color=color.OKGREEN))
 
 
 @client.command()
@@ -318,10 +322,14 @@ async def purge(ctx: commands.Context, max: int):
     if int(max) >= 255 and ctx.author.id not in db.get("PURGE_LIMIT"):
         await ctx.reply(embed=myEmbed(desc=f"> Don't delete the whole channel\n- YUU8\n*(If you want to delete a lot of messages, contact the developers at {urls.issue.BLANK})*", color=color.ORANGE, footer=f"Report hackers/bad people at {urls.issue.HACKER} and they get banned from using this bot."))
         return
-    tmp = await ctx.channel.purge(limit=int(max) + 1)
-    # *                                                                  This is important because if the user WANTS to delete lots of messages, then it should be yellow
-    # *                                                                                                             VVVVVVVV
-    await ctx.channel.send(embed=myEmbed(desc=f"{str(len(tmp))} messages have been deleted", color=color.OKGREEN if int(max) < 255 else color.YELLOW, footer=f"This user have been reached the purge limit! Report hackers/bad people at {urls.issue.HACKER} and they get banned from using this bot." if len(tmp) >= 255 else "This message will be automaticly deleted after 5 seconds."), delete_after=5.0)
+    try:
+        tmp = await ctx.channel.purge(limit=int(max) + 1)
+    except Exception:
+        raise
+    else:
+        # *                                                                  This is important because if the user WANTS to delete lots of messages, then it should be yellow
+        # *                                                                                                             VVVVVVVV
+        await ctx.channel.send(embed=myEmbed(desc=f"{str(len(tmp))} messages have been deleted", color=color.OKGREEN if int(max) < 255 else color.YELLOW, footer=f"This user have been reached the purge limit! Report hackers/bad people at {urls.issue.HACKER} and they get banned from using this bot." if len(tmp) >= 255 else "This message will be automaticly deleted after 5 seconds."), delete_after=5.0)
 
 
 @commands.cooldown(3, 10, commands.BucketType.user)
@@ -342,14 +350,18 @@ async def set_report_channel(ctx: commands.Context,
                              channel: discord.TextChannel):
     if testUser(ctx.author):
         return
-    # check is there a dict for server
-    if db.get(ctx.guild.id) is False:
-        db.set(str(ctx.guild.id), {})
-    tmp = db.get(str(ctx.guild.id))
-    # set channel
-    tmp["report_chn"] = channel.id
-    db.set(str(ctx.guild.id), tmp)
-    await ctx.reply(embed=myEmbed(desc=f"Set report channel to {str(channel)}!", color=color.OKGREEN))
+    try:
+        # check is there a dict for server
+        if db.get(ctx.guild.id) is False:
+            db.set(str(ctx.guild.id), {})
+        tmp = db.get(str(ctx.guild.id))
+        # set channel
+        tmp["report_chn"] = channel.id
+        db.set(str(ctx.guild.id), tmp)
+    except Exception:
+        raise
+    else:
+        await ctx.reply(embed=myEmbed(desc=f"Set report channel to {str(channel)}!", color=color.OKGREEN))
 
 
 @client.command()
@@ -370,6 +382,24 @@ async def report(ctx: commands.Context, user: discord.User, *reason):
         reason=" ".join(reason) if isinstance(
             reason, tuple) else reason
     )))
+
+
+@client.command()
+async def slowmode(ctx: commands.Context, cooldown: Optional[int] = None):
+    if testUser(ctx.author):
+        return
+    if cooldown is None:
+        await ctx.reply(embed=myEmbed(desc=f"Slowmode is {ctx.channel.slowmode_delay}. If you want to disable it, type `.slowmode 0`" if ctx.channel.slowmode_delay != 0 else "Slowmode is disabled. To enable it, type `.slowmode <COOLDOWN>`"))
+        return
+    if cooldown > 21600:
+        await ctx.reply(embed=myEmbed(desc="Cooldown must be between 0 and 21600", color=color.RED))
+        return
+    try:
+        await ctx.channel.edit(reason=f"{str(ctx.author)} set the slowmode to {cooldown}", slowmode_delay=cooldown if cooldown > 0 else 0)
+    except Exception:
+        raise
+    else:
+        await ctx.reply(embed=myEmbed(desc=f"Slowmode set to {cooldown}" if cooldown > 0 else "Slowmode disabled", color=color.OKGREEN))
 
 backslashn = "\n"
 
