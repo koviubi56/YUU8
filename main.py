@@ -285,25 +285,28 @@ async def kick(ctx: commands.Context, user: Union[discord.User, int], *reason: s
             reason = " ".join(reason)
         if isinstance(user, int):
             user = await client.fetch_user(user)
-        await user.kick(reason=reason)
+        # await user.kick(reason=reason)
+        await ctx.guild.kick(user=user, reason=" ".join(reason) if isinstance(reason, tuple) else reason)
     except Exception:
         raise
     else:
-        tmp = db.get(str(user.id)) if db.get(
-            str(user.id)) is not False else {}
-        if tmp.get("punishments") is None:
-            tmp["punishments"] = []
-        tmp["punishments"].append({
+        tmp = db.get(str(ctx.guild.id)) if db.get(
+            str(ctx.guild.id)) is not False else {}
+        tmp[str(user.id)] = db.get(str(ctx.guild.id))[
+            str(user.id)] if tmp.get(str(user.id)) is not None else {}
+        tmp[str(user.id)]["punishments"] = db.get(str(ctx.guild.id))[str(
+            user.id)]["punishments"] if tmp.get(str(user.id)).get("punishments") is not None else []
+        tmp[str(user.id)]["punishments"].append({
             "type": "kick",
             "moderator": ctx.author.id,
             "reason": " ".join(reason) if isinstance(reason, tuple) else reason,
             "time": datetime.now().timestamp()
         })
-        db.set(str(user.id), tmp)
+        db.set(str(ctx.guild.id), tmp)
         await ctx.reply(embed=myEmbed(
             desc="Kicked {} for reason `{}`!".format(
                 str(user),
-                tmp["punishments"][len(tmp["punishments"]) - 1]["reason"]
+                tmp[str(user.id)]["punishments"][len(tmp[str(user.id)]["punishments"]) - 1]["reason"]
             ), color=color.OKGREEN))
 
 
