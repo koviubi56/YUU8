@@ -9,19 +9,11 @@ assignees: ''
 
 # Give an idea
 ## Idea
-
-
+<!-- What is the idea? What feature do you want? -->
 
 ## Comments
 
 
-
-
 ---
-<!-- 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! Please write X to the square brackets if you read it!
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
--->
 - [ ] I read the [code of conduct](CODE_OF_CONDUCT.md)
 - [ ] I read the [contributing guidlines](CONTRIBUTING.md)
