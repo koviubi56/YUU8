@@ -270,6 +270,7 @@ async def debug(ctx: commands.Context):
 
 @client.command()
 @commands.has_permissions(kick_members=True)
+@commands.cooldown(3, 10, commands.BucketType.user)
 async def kick(ctx: commands.Context, user: Union[discord.User, int], *reason: str):
     if testUser(ctx.author):
         return
@@ -281,8 +282,8 @@ async def kick(ctx: commands.Context, user: Union[discord.User, int], *reason: s
             return
         if reason == ():
             raise commands.MissingRequiredArgument(MyParameter("reason"))
-        if isinstance(reason, (tuple, list, set)):
-            reason = " ".join(reason)
+        # //if isinstance(reason, tuple):
+        # //    reason = " ".join(reason)
         if isinstance(user, int):
             user = await client.fetch_user(user)
         # await user.kick(reason=reason)
@@ -306,7 +307,8 @@ async def kick(ctx: commands.Context, user: Union[discord.User, int], *reason: s
         await ctx.reply(embed=myEmbed(
             desc="Kicked {} for reason `{}`!".format(
                 str(user),
-                tmp[str(user.id)]["punishments"][len(tmp[str(user.id)]["punishments"]) - 1]["reason"]
+                tmp[str(user.id)]["punishments"][len(
+                    tmp[str(user.id)]["punishments"]) - 1]["reason"]
             ), color=color.OKGREEN))
 
 
@@ -403,6 +405,80 @@ async def slowmode(ctx: commands.Context, cooldown: Optional[int] = None):
         raise
     else:
         await ctx.reply(embed=myEmbed(desc=f"Slowmode set to {cooldown}" if cooldown > 0 else "Slowmode disabled", color=color.OKGREEN))
+
+
+@client.command()
+@commands.cooldown(3, 10, commands.BucketType.user)
+@commands.has_permissions(ban_members=True)
+async def ban(ctx: commands.Context, user: Union[discord.User, int], reason: str, delete_message_days: Optional[int] = None):
+    if testUser(ctx.author):
+        return
+    try:
+        if user == client.user:
+            await ctx.reply(embed=myEmbed(
+                desc="After all my good work *this* is how you reward me? What a disgrace.",
+                color=color.ORANGE))
+            return
+        if reason == ():
+            raise commands.MissingRequiredArgument(MyParameter("reason"))
+        if isinstance(delete_message_days, int):
+            if delete_message_days < 1 or delete_message_days > 7:
+                raise commands.BadArgument("Teszt")
+        # //if isinstance(reason, tuple):
+        # //    reason = " ".join(reason)
+        if isinstance(user, int):
+            user = await client.fetch_user(user)
+        await ctx.guild.ban(user=user, reason=" ".join(reason) if isinstance(reason, tuple) else reason, delete_message_days=delete_message_days if delete_message_days is not None else 0)
+    except Exception:
+        raise
+    else:
+        tmp = db.get(str(ctx.guild.id)) if db.get(
+            str(ctx.guild.id)) is not False else {}
+        tmp[str(user.id)] = db.get(str(ctx.guild.id))[
+            str(user.id)] if tmp.get(str(user.id)) is not None else {}
+        tmp[str(user.id)]["punishments"] = db.get(str(ctx.guild.id))[str(
+            user.id)]["punishments"] if tmp.get(str(user.id)).get("punishments") is not None else []
+        tmp[str(user.id)]["punishments"].append({
+            "type": "ban",
+            "moderator": ctx.author.id,
+            "reason": " ".join(reason) if isinstance(reason, tuple) else reason,
+            "delete_message_days": delete_message_days if delete_message_days is not None else 0,
+            "time": datetime.now().timestamp()
+        })
+        db.set(str(ctx.guild.id), tmp)
+        await ctx.reply(embed=myEmbed(
+            desc="Banned {} for reason `{}`!".format(
+                str(user),
+                tmp[str(user.id)]["punishments"][len(
+                    tmp[str(user.id)]["punishments"]) - 1]["reason"]
+            ), color=color.OKGREEN))
+
+
+@client.command()
+@commands.cooldown(3, 10, commands.BucketType.user)
+@commands.has_permissions(ban_members=True)
+async def unban(ctx: commands.Context, user: Union[discord.User, int], reason: str):
+    if testUser(ctx.author):
+        return
+    try:
+        if user == client.user:
+            await ctx.reply(embed=myEmbed(
+                desc="I'm not banned",
+                color=color.ORANGE))
+            return
+        if reason == ():
+            raise commands.MissingRequiredArgument(MyParameter("reason"))
+        if isinstance(user, int):
+            user = await client.fetch_user(user)
+        await ctx.guild.unban(user=user, reason=" ".join(reason) if isinstance(reason, tuple) else reason)
+    except Exception:
+        raise
+    else:
+        await ctx.reply(embed=myEmbed(
+            desc="Unbanned {} for reason `{}`!".format(
+                str(user),
+                " ".join(reason) if isinstance(reason, tuple) else reason
+            ), color=color.OKGREEN))
 
 backslashn = "\n"
 
