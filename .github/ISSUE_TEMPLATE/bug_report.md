@@ -9,23 +9,13 @@ assignees: ''
 
 # Bug report
 ## The bug
-
-
+<!-- What is the bug? -->
 
 ## Expected behavior
-
-
+<!-- What is the expected behavior? -->
 
 ## Comments
 
-
-
-
 ---
-<!-- 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! Please write X to the square brackets if you read it!
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
--->
 - [ ] I read the [code of conduct](CODE_OF_CONDUCT.md)
 - [ ] I read the [contributing guidlines](CONTRIBUTING.md)

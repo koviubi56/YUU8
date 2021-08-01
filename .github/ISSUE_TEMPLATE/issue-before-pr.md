@@ -8,17 +8,9 @@ assignees: ''
 ---
 
 # Issue before pull request
-## Draft pull request
-<!-- Put here the draft pull request's number. Example: #56 -->
-#
-
-## Comments
+## Changes
+<!-- What are you want to change? -->
 
 ---
-<!-- 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! Please write X to the square brackets if you read it!
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
--->
 - [ ] I read the [code of conduct](CODE_OF_CONDUCT.md)
 - [ ] I read the [contributing guidlines](CONTRIBUTING.md)
