@@ -131,3 +131,4 @@ dmypy.json
 
 .vscode
 database.db
+*.tmp
