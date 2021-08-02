@@ -1,12 +1,17 @@
+# Contributing guidlines
+
 First off, thank you for considering contributing.
 
 ## Why is this guildline exists?
+
 Following these guidelines helps to communicate that you respect the time of the developers managing and developing this open source project. In return, they should reciprocate that respect in addressing your issue, assessing changes, and helping you finalize your pull requests.
 
 ## What to do
+
 Pollbot8 is an open source project and we love to receive contributions from our community! There are many ways to contribute, from improving the documentation, submitting bug reports and feature requests or writing code.
 
 ## Rules
+
 * Fill issue templates, use labels.
 * If you are making a not small pull request, create an issue first, with the *Issue before pr* label.
 * Read the [code of conduct](CODE_OF_CONDUCT.md).
@@ -17,7 +22,8 @@ Pollbot8 is an open source project and we love to receive contributions from our
 * Make sure to put an X to the square brackets at the end of the issue, if you read the contributing guidlines, and the code of conduct. **If you don't put an X to all of them, your issue will be closed!**
 
 ## Pull requests
-* Note the [Code of Conduct](CODE_OF_CONDUCT.md). 
+
+* Note the [Code of Conduct](CODE_OF_CONDUCT.md).
 * Create an issue first with the *Issue before pr* label.
 * Wait until a maintainer accepts it.
 * Create a fork.
@@ -28,20 +34,27 @@ Pollbot8 is an open source project and we love to receive contributions from our
 * Wait...
 
 ## Priority
+
 ### Small
+
 * Spelling / grammar fixes
 * Typo correction, white space and formatting changes
 * Comment clean up
 * Adding logging messages or debugging output
+
 ### Medium
+
 * Bug fixes that fix errors that maked a part of the bot buggy/unuseable (**not** typos).
 * New features
 * Report hackers/bad people
+
 ### High
+
 * Bug fixes that fix errors that maked the whole bot buggy/unuseable.
 * Security vulnerabilities
 
 ## Security vulnerabilities
+
 In order to determine whether you are dealing with a security issue, ask yourself these two questions:
 
 * Can I access something that's not mine, or something I shouldn't have access to?
