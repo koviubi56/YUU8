@@ -49,6 +49,10 @@ DEBUG = True
 db = pickledb.load('database.db', True)
 
 
+def reloadDB():
+    db.load("database.db", True)
+
+
 class color:
     WHITE = 0xFFFFFF
     BLACK = 0x000000
@@ -136,6 +140,7 @@ class MyParameter:
 
 
 def testUser(user: discord.User) -> bool:
+    reloadDB()
     if db.get("BANNED_USERS") is False:
         raise Exception('db.get("BANNED_USERS") is {}'.format(
             db.get("BANNED_USERS")))
@@ -171,6 +176,7 @@ async def ping(ctx: commands.Context):
                     value=f"{client.latency:.2f} s/{client.latency * 1000:.2f} ms",
                     inline=False)
 
+    reloadDB()
     dbping = 0
     for _ in range(100):
         old = time()
@@ -239,6 +245,7 @@ async def suggest(ctx: commands.Context,
                   *suggestion: str):
     if testUser(ctx.author):
         return
+    reloadDB()
     if db.get(str(ctx.guild.id)) is not False and "suggestion_chn" in db.get(str(ctx.guild.id)):
         chn = await client.fetch_channel(
             db.get(str(ctx.guild.id))["suggestion_chn"])
@@ -291,6 +298,7 @@ async def kick(ctx: commands.Context, user: Union[discord.User, int], *reason: s
     except Exception:
         raise
     else:
+        reloadDB()
         tmp = db.get(str(ctx.guild.id)) if db.get(
             str(ctx.guild.id)) is not False else {}
         tmp[str(user.id)] = db.get(str(ctx.guild.id))[
@@ -323,6 +331,7 @@ async def purge(ctx: commands.Context, max: int):
     except Exception:
         await ctx.reply(embed=myEmbed(desc="Max must be an integer number.", color=color.RED, footer=IFERROR))
         return
+    reloadDB()
     # 255 is a nice number. There isn't (or i don't know of) any type of API limitation, that is 255. It's just a nice number.
     if int(max) >= 255 and ctx.author.id not in db.get("PURGE_LIMIT"):
         await ctx.reply(embed=myEmbed(desc=f"> Don't delete the whole channel\n- YUU8\n*(If you want to delete a lot of messages, contact the developers at {urls.issue.BLANK})*", color=color.ORANGE, footer=f"Report hackers/bad people at {urls.issue.HACKER} and they get banned from using this bot."))
@@ -356,6 +365,7 @@ async def set_report_channel(ctx: commands.Context,
     if testUser(ctx.author):
         return
     try:
+        reloadDB()
         # check is there a dict for server
         if db.get(ctx.guild.id) is False:
             db.set(str(ctx.guild.id), {})
@@ -373,6 +383,7 @@ async def set_report_channel(ctx: commands.Context,
 async def report(ctx: commands.Context, user: discord.User, *reason):
     if testUser(ctx.author):
         return
+    reloadDB()
     if db.get(str(ctx.guild.id)) is False or db.get(str(ctx.guild.id)).get("report_chn") is None:
         await ctx.reply(embed=myEmbed(desc="This server isn't have a report channel", color=color.RED))
         return
@@ -432,6 +443,7 @@ async def ban(ctx: commands.Context, user: Union[discord.User, int], reason: str
     except Exception:
         raise
     else:
+        reloadDB()
         tmp = db.get(str(ctx.guild.id)) if db.get(
             str(ctx.guild.id)) is not False else {}
         tmp[str(user.id)] = db.get(str(ctx.guild.id))[
