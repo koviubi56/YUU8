@@ -15,6 +15,7 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+from secrets import token_hex
 import discord
 import aiohttp
 import pickledb
@@ -24,24 +25,26 @@ from typing import Optional, Union
 from discord.ext import commands
 from datetime import datetime
 from time import time
+from re import I, findall
 
 try:
     from dotenv import load_dotenv
 except ImportError:
     pass
+else:
+    load_dotenv()
 
 if __name__ == "__main__":
     print("Loading...")
 
-try:
-    load_dotenv()
-except Exception:
-    pass
+intents = discord.Intents.default()
+intents.members = True
 
 client = commands.Bot(
     command_prefix=".",
     description="A cool discord bot",
-    owner_id=510548663496474660
+    owner_id=510548663496474660,
+    intents=intents
 )
 
 # TODO: Turn this OFF
@@ -86,15 +89,18 @@ class urls:
     # There are no unnecessary URLs here.
     class issue:
         # https://github.com/koviubi56/YUU8/issues/new?assignees=&labels=Type%3A+Bug&template=bug_report.md&title=
-        BUG = "https://yerl.org/If5za9uTZntiwQmVXdVugX"
+        # BUG = "https://yerl.org/If5za9uTZntiwQmVXdVugX"
+        BUG = "https://koviubi56-redirect.glitch.me/1.html"
         # https://github.com/koviubi56/YUU8/issues/new
-        BLANK = "https://yerl.org/9TwySiyYmZoSCHsiXYb90t"
+        # BLANK = "https://yerl.org/9TwySiyYmZoSCHsiXYb90t"
+        BLANK = "https://koviubi56-redirect.glitch.me/2.html"
         # https://github.com/koviubi56/YUU8/issues/new?assignees=&labels=Priority%3A+Medium&template=report-bad-user.md&title=
-        HACKER = "https://yerl.org/eCPRDRalWRL5e8mqn8bRKD"
+        # HACKER = "https://yerl.org/eCPRDRalWRL5e8mqn8bRKD"
+        HACKER = "https://koviubi56-redirect.glitch.me/3.html"
 
     class file:
         # https://github.com/koviubi56/YUU8/blob/main/CONTRIBUTORS
-        CONTRIBUTORS = "https://yerl.org/eRL8uhfAvPIB19CfxUOLlj"
+        CONTRIBUTORS = "https://koviubi56-redirect.glitch.me/4.html"
 
 
 IFERROR = f"If you think this is an error, report it at {urls.issue.BUG}"
@@ -139,7 +145,7 @@ class MyParameter:
         return str(self.myname)
 
 
-def testUser(user: discord.User) -> bool:
+def testUser(user: Union[discord.Member, discord.User]) -> bool:
     reloadDB()
     if db.get("BANNED_USERS") is False:
         raise Exception('db.get("BANNED_USERS") is {}'.format(
@@ -180,6 +186,7 @@ async def ping(ctx: commands.Context):
     dbping = 0
     for _ in range(100):
         old = time()
+        reloadDB()
         db.getall()
         dbping += time() - old
     try:
@@ -278,7 +285,7 @@ async def debug(ctx: commands.Context):
 @client.command()
 @commands.has_permissions(kick_members=True)
 @commands.cooldown(3, 10, commands.BucketType.user)
-async def kick(ctx: commands.Context, user: Union[discord.User, int], *reason: str):
+async def kick(ctx: commands.Context, user: Union[discord.User, discord.Member, int], *reason: str):
     if testUser(ctx.author):
         return
     try:
@@ -380,7 +387,7 @@ async def set_report_channel(ctx: commands.Context,
 
 
 @client.command()
-async def report(ctx: commands.Context, user: discord.User, *reason):
+async def report(ctx: commands.Context, user: Union[discord.User, discord.Member], *reason):
     if testUser(ctx.author):
         return
     reloadDB()
@@ -421,7 +428,7 @@ async def slowmode(ctx: commands.Context, cooldown: Optional[int] = None):
 @client.command()
 @commands.cooldown(3, 10, commands.BucketType.user)
 @commands.has_permissions(ban_members=True)
-async def ban(ctx: commands.Context, user: Union[discord.User, int], reason: str, delete_message_days: Optional[int] = None):
+async def ban(ctx: commands.Context, user: Union[discord.User, discord.Member, int], reason: str, delete_message_days: Optional[int] = None):
     if testUser(ctx.author):
         return
     try:
@@ -469,7 +476,7 @@ async def ban(ctx: commands.Context, user: Union[discord.User, int], reason: str
 @client.command()
 @commands.cooldown(3, 10, commands.BucketType.user)
 @commands.has_permissions(ban_members=True)
-async def unban(ctx: commands.Context, user: Union[discord.User, int], reason: str):
+async def unban(ctx: commands.Context, user: Union[discord.User, discord.Member, int], reason: str):
     if testUser(ctx.author):
         return
     try:
@@ -492,6 +499,86 @@ async def unban(ctx: commands.Context, user: Union[discord.User, int], reason: s
                 " ".join(reason) if isinstance(reason, tuple) else reason
             ), color=color.OKGREEN))
 
+
+@client.command()
+@commands.has_permissions(ban_members=True, kick_members=True, manage_messages=True)
+async def regex(ctx: commands.Context, punishment: str, regex: Optional[str] = None):
+    if testUser(ctx.author):
+        return
+    if punishment not in ["del", "kick", "ban", "no"]:
+        ctx.reply(
+            'Punishment can be "del" to delete, "kick" to delete and kick, "ban" to delete and ban, or "no" to delete the regex.')
+        return
+    if punishment == "no":
+        db.dadd(str(ctx.message.guild.id), ("regex", []))
+        await ctx.reply(embed=myEmbed(desc="Deleted regex!", color=color.OKGREEN))
+        return
+    if regex is None:
+        raise commands.MissingRequiredArgument(MyParameter("regex"))
+    db.dadd(str(ctx.message.guild.id), ("regex", [regex, "del"]))
+    await ctx.reply(embed=myEmbed(desc="If the regex `{}` matches anywhere, the message will be deleted{}.\nIf someone (including hackers, admins and mods) changes the regex to \".\" or something else, then you can't turn off the regex. For this reasons, type this command: `.get_code`.".format(
+        regex,
+        ", and the user will be banned forever, for reason: `Regex matched`" if punishment == "ban" else ", and the user will be kicked, for reason: `Regex matched`" if punishment == "kick" else ""
+    ), color=color.OKGREEN, title="Added regex!"))
+
+
+@client.command()
+async def get_code(ctx: commands.Context):
+    if ctx.author != ctx.guild.owner:
+        await ctx.reply(embed=myEmbed("Just the owner of the server can use this command, " + str(ctx.guild.owner), color=color.RED))
+        return
+    # yes, I know that this is unnecessary, but I want 101% security
+    else:
+        db.dadd(str(ctx.guild.id), ("code", token_hex(740)))
+        dm = await ctx.guild.owner.create_dm()
+        await dm.send("This is the code for your server. This MUST be kept a secret! DO NOT share it even with your admins, mods!\n* Disable regex (in DM): `disable regex <SERVER ID> <CODE>` replace <SERVER ID> with the server's ID, <CODE> with the code.\n* Generate a new code (in DM): `new code <SERVER ID> <OLD CODE>` replace <SERVER ID> with your server's ID, <OLD CODE> with the (old) code.\n* Remove code (in DM): `remove code <SERVER ID> <CODE>` replace <SERVER ID> with your server's ID, <CODE> with the code.\n\nThis is the code:\n```\n{}\n```".format(db.dget(str(ctx.guild.id), "code")))
+
+
+@client.event
+async def on_message(message):
+    reloadDB()
+    if message.guild is None:
+        if message.content.startswith("disable regex"):
+            tmp = message.content.split(" ")
+            if db.get(str(tmp[2])) is False or db.get(str(tmp[2])).get("code") is None or db.dget(str(tmp[2]), "code") != tmp[3]:
+                await message.reply("No.")
+                return
+            # yes, I know that this is unnecessary, but I want 101% security
+            else:
+                db.dadd(str(tmp[2]), ("regex", []))
+                await message.reply("Done!\n(Note: For 69420% security you may want to generate a new code.)")
+        if message.content.startswith("new code"):
+            tmp = message.content.split(" ")
+            if db.get(str(tmp[2])) is False or db.get(str(tmp[2])).get("code") is None or db.dget(str(tmp[2]), "code") != tmp[3]:
+                await message.reply("No.")
+                return
+            # yes, I know that this is unnecessary, but I want 101% security
+            else:
+                db.dadd(str(tmp[2]), ("code", token_hex(740)))
+                await message.reply("This is the code for your server. This MUST be kept a secret! DO NOT share it even with your admins, mods!\n* Disable regex (in DM): `disable regex <SERVER ID> <CODE>` replace <SERVER ID> with the server's ID, <CODE> with the code.\n* Generate a new code (in DM): `new code <OLD CODE>` replace <OLD CODE> with the (old) code.\n* Remove code (in DM): `remove code <CODE>` replace <CODE> with the code.\n\nThis is the code:\n```\n{}\n```".format(db.dget(str(tmp[2]), "code")))
+        if message.content.startswith("remove code"):
+            tmp = message.content.split(" ")
+            if db.get(str(tmp[2])) is False or db.get(str(tmp[2])).get("code") is None or db.dget(str(tmp[2]), "code") != tmp[3]:
+                await message.reply("No.")
+                return
+            # yes, I know that this is unnecessary, but I want 101% security
+            else:
+                tmp2 = db.get(str(tmp[2]))
+                del tmp2["code"]
+                db.set(str(tmp[2]), tmp2)
+                await message.reply("This is the code for your server. This MUST be kept a secret! DO NOT share it even with your admins, mods!\n* Disable regex (in DM): `disable regex <SERVER ID> <CODE>` replace <SERVER ID> with the server's ID, <CODE> with the code.\n* Generate a new code (in DM): `new code <OLD CODE>` replace <OLD CODE> with the (old) code.\n* Remove code (in DM): `remove code <CODE>` replace <CODE> with the code.\n\nThis is the code:\n```\n{}\n```".format(db.dget(str(tmp[2]), "code")))
+        return
+    if str(message.guild.id) in db.db:
+        if db.get(str(message.guild.id)).get("regex"):
+            if findall(db.get(str(message.guild.id))["regex"][0], message.content, I):
+                await message.delete()
+                if db.get(str(message.guild.id))["regex"][1] == "kick":
+                    await message.guild.kick(message.author, reason="Matched regex.")
+                elif db.get(str(message.guild.id))["regex"][1] == "ban":
+                    await message.guild.ban(message.author, reason="Matched regex.")
+
+    await client.process_commands(message)
+
 backslashn = "\n"
 
 
@@ -507,6 +594,10 @@ async def on_command_error(ctx: commands.Context, error: commands.errors.Command
         await ctx.reply(embed=myEmbed(desc=error.args[0].capitalize(), color=color.RED, footer="Please, do not abuse with these informations!"))
     elif isinstance(error, commands.BadArgument):
         await ctx.reply(embed=myEmbed(desc=error.args[0], color=color.RED, footer="Please, do not abuse with these informations!"))
+    elif isinstance(error, commands.BadUnionArgument) and 0:
+        await ctx.reply(embed=myEmbed(desc="I think a parameter's type is bad. Text while it should be number, number while it should be text, ...", color=color.RED))
+    elif (isinstance(error, discord.Forbidden) and error.code == 50013) or error.args[0] == 'Command raised an exception: Forbidden: 403 Forbidden (error code: 50013): Missing Permissions':
+        await ctx.reply(embed=myEmbed(desc="I don't have permission to do that.", color=color.RED))
     else:
         # Check for sensitive information
         for j in (error.__class__.__name__, error.__class__, error.args):
