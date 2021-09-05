@@ -8,7 +8,7 @@ Following these guidelines helps to communicate that you respect the time of the
 
 ## What to do
 
-Pollbot8 is an open source project and we love to receive contributions from our community! There are many ways to contribute, from improving the documentation, submitting bug reports and feature requests or writing code.
+YUU8 is an open source project and we love to receive contributions from our community! There are many ways to contribute, from improving the documentation, submitting bug reports and feature requests or writing code.
 
 ## Rules
 
