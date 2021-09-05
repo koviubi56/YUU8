@@ -10,8 +10,6 @@
 
 ### PGP public key
 
-[Here](https://bin.hopon.cam/?e2cc7d503995e27f#HCvWjDk4Vwk5pe2BbTpyprhWfA2ZC1HNH5HLhvHxpqEv) or here:
-
 ```
 -----BEGIN PGP PUBLIC KEY BLOCK-----
 
