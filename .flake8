@@ -1,5 +1,6 @@
 [flake8]
-extend-ignore = E501,W503
+extend-ignore = W503
 count = True
-show_source = True
+show-source = True
 statistics = True
+extend-exclude = venv
