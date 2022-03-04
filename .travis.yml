@@ -9,4 +9,4 @@ install:
   - if [ -f requirements.txt ]; then pip install -U -r requirements.txt; fi
   - pip install -U flake8
 script:
-  - python -m flake8 --count --show-source --statistics --ignore E501,E741,W291
+  - python -m flake8 --config .flake8
