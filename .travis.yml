@@ -1,10 +1,12 @@
 language: python
-os: Trusty
 python:
+  - "3.8"
   - "3.9"
+  - "3.10"
+  - "nightly"
 cache: pip
 before_install:
-  - pip install -U pip
+  - python -m pip install --upgrade pip
 install:
   - if [ -f requirements.txt ]; then pip install -U -r requirements.txt; fi
   - pip install -U flake8

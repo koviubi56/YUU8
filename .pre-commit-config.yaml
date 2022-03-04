@@ -31,11 +31,11 @@ repos:
     -   id: trailing-whitespace
         language_version: python3
 
--   repo: https://github.com/psf/black
-    rev: 22.1.0
-    hooks:
-    -   id: black
-        args: [--safe]
+# -   repo: https://github.com/psf/black
+#     rev: 22.1.0
+#     hooks:
+#     -   id: black
+#         args: [--safe, --verbose]
 
 -   repo: https://github.com/PyCQA/flake8
     rev: 4.0.1
@@ -47,7 +47,7 @@ repos:
     rev: v2.7.1
     hooks:
     -   id: reorder-python-imports
-        args: [--application-directories=.:src, --py38-plus]
+        args: [--py38-plus]
 
 -   repo: https://github.com/asottile/pyupgrade
     rev: v2.31.0

@@ -286,9 +286,8 @@ async def suggest(ctx: commands.Context, *suggestion: str):
         except Exception:
             embed = my_ember(
                 desc=suggestion,
-                footer="There was an error when we wanted to create this embed. Please report every bug at {}".format(
-                    URLs.Issue.BUG
-                ),
+                footer="There was an error when we wanted to create this"
+                " embed. Please report every bug at " + URLs.Issue.BUG,
             )
 
         msg = await chn.send(embed=embed)
@@ -323,7 +322,8 @@ async def kick(
         if user == client.user:
             await ctx.reply(
                 embed=my_ember(
-                    desc="After all my good work *this* is how you reward me? What a disgrace.",
+                    desc="After all my good work *this* is how you reward me?"
+                    " What a disgrace.",
                     color=Color.ORANGE,
                 )
             )
@@ -396,13 +396,17 @@ async def purge(ctx: commands.Context, max: int):
         )
         return
     reload_db()
-    # 255 is a nice number. There isn't (or i don't know of) any type of API limitation, that is 255. It's just a nice number.
+    # 255 is a nice number. There isn't (or i don't know of) any type of API
+    # limitation, that is 255. It's just a nice number.
     if int(max) >= 255 and ctx.author.id not in db.get("PURGE_LIMIT"):
         await ctx.reply(
             embed=my_ember(
-                desc=f"> Don't delete the whole channel\n- YUU8\n*(If you want to delete a lot of messages, contact the developers at {URLs.Issue.BLANK})*",
+                desc=f"> Don't delete the whole channel\n- YUU8\n*(If you want"
+                f" to delete a lot of messages, contact the developers"
+                f" at {URLs.Issue.BLANK})*",
                 color=Color.ORANGE,
-                footer=f"Report hackers/bad people at {URLs.Issue.HACKER} and they get banned from using this bot.",
+                footer=f"Report hackers/bad people at {URLs.Issue.HACKER} and"
+                f" they get banned from using this bot.",
             )
         )
         return
@@ -411,15 +415,25 @@ async def purge(ctx: commands.Context, max: int):
     except Exception:
         raise
     else:
-        # *                                                                  This is important because if the user WANTS to delete lots of messages, then it should be yellow
-        # *                                                                                                             VVVVVVVV
+        if int(max) < 255:
+            _color = Color.OKGREEN
+        else:
+            _color = Color.YELLOW
+
+        if len(tmp) >= 255:
+            _footer = (
+                f"This user have been reached the purge limit!"
+                f" Report hackers/bad people at {URLs.Issue.HACKER} and they"
+                f" get banned from using this bot."
+            )
+        else:
+            _footer = "This message will be automaticly deleted after 5" " seconds."
+
         await ctx.channel.send(
             embed=my_ember(
                 desc=f"{str(len(tmp))} messages have been deleted",
-                color=Color.OKGREEN if int(max) < 255 else Color.YELLOW,
-                footer=f"This user have been reached the purge limit! Report hackers/bad people at {URLs.Issue.HACKER} and they get banned from using this bot."
-                if len(tmp) >= 255
-                else "This message will be automaticly deleted after 5 seconds.",
+                color=_color,
+                footer=_footer,
             ),
             delete_after=5.0,
         )
@@ -436,7 +450,9 @@ async def clear(ctx: commands.Context, *args, **kwargs):
     except Exception:
         await ctx.reply(
             embed=my_ember(
-                desc="Something went wrong.\nDo you passed the max parameter? Is it an integer number that is bigger than zero?\n`.clear <MAX>`",
+                desc="Something went wrong.\nDo you passed the max parameter?"
+                " Is it an integer number that is bigger than zero?\n`.clear"
+                " <MAX>`",
                 color=Color.RED,
                 footer=IFERROR,
             )
@@ -495,7 +511,8 @@ async def report(
     await chn.send(
         embed=my_ember(
             title="Report",
-            desc="Report by: {report_by}\nReported user: {reported_user}\nReason: {reason}".format(
+            desc="Report by: {report_by}\nReported user: {reported_user}"
+            "\nReason: {reason}".format(
                 report_by=str(ctx.author),
                 reported_user=str(user),
                 reason=" ".join(reason) if isinstance(reason, tuple) else reason,
@@ -511,9 +528,11 @@ async def slowmode(ctx: commands.Context, cooldown: Optional[int] = None):
     if cooldown is None:
         await ctx.reply(
             embed=my_ember(
-                desc=f"Slowmode is {ctx.channel.slowmode_delay}. If you want to disable it, type `.slowmode 0`"
+                desc=f"Slowmode is {ctx.channel.slowmode_delay}. If you want"
+                " to disable it, type `.slowmode 0`"
                 if ctx.channel.slowmode_delay != 0
-                else "Slowmode is disabled. To enable it, type `.slowmode <COOLDOWN>`"
+                else "Slowmode is disabled. To enable it, type `.slowmode"
+                " <COOLDOWN>`"
             )
         )
         return
@@ -559,7 +578,8 @@ async def ban(
         if user == client.user:
             await ctx.reply(
                 embed=my_ember(
-                    desc="After all my good work *this* is how you reward me? What a disgrace.",
+                    desc="After all my good work *this* is how you reward me?"
+                    " What a disgrace.",
                     color=Color.ORANGE,
                 )
             )
@@ -670,7 +690,8 @@ async def regex(
         return
     if punishment not in ["del", "kick", "ban", "no"]:
         ctx.reply(
-            'Punishment can be "del" to delete, "kick" to delete and kick, "ban" to delete and ban, or "no" to delete the regex.'
+            'Punishment can be "del" to delete, "kick" to delete and kick,'
+            ' "ban" to delete and ban, or "no" to delete the regex.'
         )
         return
     if punishment == "no":
@@ -680,16 +701,27 @@ async def regex(
     if regex is None:
         raise commands.MissingRequiredArgument(MyParameter("regex"))
     db.dadd(str(ctx.message.guild.id), ("regex", [regex, "del"]))
+    _desc = (
+        "If the regex `{}` matches anywhere, the message will be"
+        " deleted{}.\nIf someone (including hackers, admins and mods) changes"
+        ' the regex to "." or something else, then you can\'t turn off the'
+        " regex. For this reasons, type this command: `.get_code`."
+    )
+    if punishment == "ban":
+        _desc = _desc.format(
+            regex,
+            ", and the user will be banned forever," " for reason: `Regex matched`",
+        )
+    elif punishment == "kick":
+        _desc = _desc.format(
+            regex,
+            ", and the user will be kicked, for" " reason: `Regex matched`",
+        )
+    else:
+        _desc = _desc.format(regex, "")
     await ctx.reply(
         embed=my_ember(
-            desc='If the regex `{}` matches anywhere, the message will be deleted{}.\nIf someone (including hackers, admins and mods) changes the regex to "." or something else, then you can\'t turn off the regex. For this reasons, type this command: `.get_code`.'.format(
-                regex,
-                ", and the user will be banned forever, for reason: `Regex matched`"
-                if punishment == "ban"
-                else ", and the user will be kicked, for reason: `Regex matched`"
-                if punishment == "kick"
-                else "",
-            ),
+            desc=_desc,
             color=Color.OKGREEN,
             title="Added regex!",
         )
@@ -712,9 +744,15 @@ async def get_code(ctx: commands.Context):
         db.dadd(str(ctx.guild.id), ("code", token_hex(740)))
         dm = await ctx.guild.owner.create_dm()
         await dm.send(
-            "This is the code for your server. This MUST be kept a secret! DO NOT share it even with your admins, mods!\n* Disable regex (in DM): `disable regex <SERVER ID> <CODE>` replace <SERVER ID> with the server's ID, <CODE> with the code.\n* Generate a new code (in DM): `new code <SERVER ID> <OLD CODE>` replace <SERVER ID> with your server's ID, <OLD CODE> with the (old) code.\n* Remove code (in DM): `remove code <SERVER ID> <CODE>` replace <SERVER ID> with your server's ID, <CODE> with the code.\n\nThis is the code:\n```\n{}\n```".format(
-                db.dget(str(ctx.guild.id), "code")
-            )
+            "This is the code for your server. This MUST be kept a secret! DO"
+            " NOT share it even with your admins, mods!\n* Disable regex (in"
+            " DM): `disable regex <SERVER ID> <CODE>` replace <SERVER ID> with"
+            " the server's ID, <CODE> with the code.\n* Generate a new code"
+            " (in DM): `new code <SERVER ID> <OLD CODE>` replace <SERVER ID>"
+            " with your server's ID, <OLD CODE> with the (old) code.\n* Remove"
+            " code (in DM): `remove code <SERVER ID> <CODE>` replace <SERVER"
+            " ID> with your server's ID, <CODE> with the code.\n\nThis is the"
+            " code:\n```\n{}\n```".format(db.dget(str(ctx.guild.id), "code"))
         )
 
 
@@ -735,7 +773,8 @@ async def on_message(message):
             else:
                 db.dadd(str(tmp[2]), ("regex", []))
                 await message.reply(
-                    "Done!\n(Note: For 69420% security you may want to generate a new code.)"
+                    "Done!\n(Note: For 69420% security you may want to"
+                    " generate a new code.)"
                 )
         if message.content.startswith("new code"):
             tmp = message.content.split(" ")
@@ -750,9 +789,15 @@ async def on_message(message):
             else:
                 db.dadd(str(tmp[2]), ("code", token_hex(740)))
                 await message.reply(
-                    "This is the code for your server. This MUST be kept a secret! DO NOT share it even with your admins, mods!\n* Disable regex (in DM): `disable regex <SERVER ID> <CODE>` replace <SERVER ID> with the server's ID, <CODE> with the code.\n* Generate a new code (in DM): `new code <OLD CODE>` replace <OLD CODE> with the (old) code.\n* Remove code (in DM): `remove code <CODE>` replace <CODE> with the code.\n\nThis is the code:\n```\n{}\n```".format(
-                        db.dget(str(tmp[2]), "code")
-                    )
+                    "This is the code for your server. This MUST be kept as"
+                    " a secret! DO NOT share it even with your admins, mods!\n"
+                    "* Disable regex (in DM): `disable regex <SERVER ID>"
+                    " <CODE>` replace <SERVER ID> with the server's ID, <CODE>"
+                    " with the code.\n* Generate a new code (in DM): `new code"
+                    " <OLD CODE>` replace <OLD CODE> with the (old) code.\n*"
+                    " Remove code (in DM): `remove code <CODE>` replace <CODE>"
+                    " with the code.\n\nThis is the code:"
+                    "\n```\n{}\n```".format(db.dget(str(tmp[2]), "code"))
                 )
         if message.content.startswith("remove code"):
             tmp = message.content.split(" ")
@@ -769,9 +814,15 @@ async def on_message(message):
                 del tmp2["code"]
                 db.set(str(tmp[2]), tmp2)
                 await message.reply(
-                    "This is the code for your server. This MUST be kept a secret! DO NOT share it even with your admins, mods!\n* Disable regex (in DM): `disable regex <SERVER ID> <CODE>` replace <SERVER ID> with the server's ID, <CODE> with the code.\n* Generate a new code (in DM): `new code <OLD CODE>` replace <OLD CODE> with the (old) code.\n* Remove code (in DM): `remove code <CODE>` replace <CODE> with the code.\n\nThis is the code:\n```\n{}\n```".format(
-                        db.dget(str(tmp[2]), "code")
-                    )
+                    "This is the code for your server. This MUST be kept a"
+                    " secret! DO NOT share it even with your admins, mods!\n*"
+                    " Disable regex (in DM): `disable regex <SERVER ID>"
+                    " <CODE>` replace <SERVER ID> with the server's ID, <CODE>"
+                    " with the code.\n* Generate a new code (in DM): `new code"
+                    " <OLD CODE>` replace <OLD CODE> with the (old) code.\n*"
+                    " Remove code (in DM): `remove code <CODE>` replace <CODE>"
+                    " with the code.\n\nThis is the code:"
+                    "\n```\n{}\n```".format(db.dget(str(tmp[2]), "code"))
                 )
         return
     if (
@@ -826,7 +877,10 @@ async def on_command_error(ctx: commands.Context, error: commands.errors.Command
         )
     elif (isinstance(error, discord.Forbidden) and error.code == 50013) or error.args[
         0
-    ] == "Command raised an exception: Forbidden: 403 Forbidden (error code: 50013): Missing Permissions":
+    ] == (
+        "Command raised an exception: Forbidden: 403 Forbidden (error code:"
+        " 50013): Missing Permissions"
+    ):
         await ctx.reply(
             embed=my_ember(
                 desc="I don't have permission to do that.",
@@ -850,12 +904,14 @@ Include, that we can't say details for security reasons!"""
             ),
             f"""Something went wrong!
 Error: `{error.__class__.__name__}`
-If you think that this is an error that we can fix, open an issue here: {URLs.Issue.BUG} and include this:
+If you think that this is an error that we can fix, open an issue here:\
+ {URLs.Issue.BUG} and include this:
 ```py
 {error.__class__ = }
 {error.__cause__ = }{backslashn + str(error.args) if DEBUG else ""}
 ```
-If you help us, you will be in the CONTRIBUTORS file ({URLs.File.CONTRIBUTORS})""",
+If you help us, you will be in the CONTRIBUTORS file\
+ ({URLs.File.CONTRIBUTORS})""",
         )
 
         # Send
