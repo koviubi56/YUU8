@@ -24,8 +24,8 @@ from typing import Literal, Optional, Union
 
 import aiohttp
 import discord
-import pickledb  # nosec  # noqa
 from discord.ext import commands
+import pickledb  # nosec  # noqa
 
 try:
     from dotenv import load_dotenv

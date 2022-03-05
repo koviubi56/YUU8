@@ -38,7 +38,6 @@ darglint
 flake8-markdown
 flake8-rst
 flake8-polyfill
-flakehell
 flake8-codes
 flake8-tidy-imports
 Dlint
