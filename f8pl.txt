@@ -2,7 +2,6 @@
 # Use "-U"!
 flake8-2020
 flake8-alfred
-flake8-alphabetize
 flake8-broken-line
 flake8-bugbear
 flake8-builtins
@@ -37,13 +36,11 @@ flake8-length
 flake8-copyright
 darglint
 flake8-markdown
-flake8-rst-docstrings
 flake8-rst
 flake8-polyfill
 flakehell
 flake8-codes
 flake8-tidy-imports
-flake8-absolute-import
 Dlint
 flake8-aaa
 flake8-assertive

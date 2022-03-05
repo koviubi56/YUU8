@@ -3,4 +3,4 @@ extend-ignore = W503
 count = True
 show-source = True
 statistics = True
-extend-exclude = venv
+extend-exclude = *cache*,venv
