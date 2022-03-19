@@ -488,7 +488,7 @@ async def purge(ctx: commands.Context, max_: int):
     if test_user(ctx.author):
         return
     try:
-        int(max_)
+        max_
     except Exception:
         await ctx.reply(
             embed=my_ember(
@@ -501,9 +501,7 @@ async def purge(ctx: commands.Context, max_: int):
     reload_db()
     # 255 is a nice number. There isn't (or i don't know of) any type of API
     # limitation, that is 255. It's just a nice number.
-    if int(max_) >= 255 and ctx.author.id not in db.get(
-        "PURGE_LIMIT"
-    ):
+    if max_ >= 255 and ctx.author.id not in db.get("PURGE_LIMIT"):
         await ctx.reply(
             embed=my_ember(
                 desc=f"> Don't delete the whole channel\n- YUU8\n*(If you want"
@@ -515,12 +513,8 @@ async def purge(ctx: commands.Context, max_: int):
             )
         )
         return
-    tmp = await ctx.channel.purge(limit=int(max_) + 1)
-    if int(max_) < 255:
-        _color = Color.OKGREEN
-    else:
-        _color = Color.YELLOW
-
+    tmp = await ctx.channel.purge(limit=max_ + 1)
+    _color = Color.OKGREEN if max_ < 255 else Color.YELLOW
     if len(tmp) >= 255:
         _footer = (
             f"This user have been reached the purge limit!"
@@ -535,7 +529,7 @@ async def purge(ctx: commands.Context, max_: int):
 
     await ctx.channel.send(
         embed=my_ember(
-            desc=f"{str(len(tmp))} messages have been deleted",
+            desc=f"{len(tmp)} messages have been deleted",
             color=_color,
             footer=_footer,
         ),
