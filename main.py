@@ -15,17 +15,17 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-from secrets import token_hex
-import discord
-import aiohttp
-import pickledb  # nosec
-
-from os import environ
-from typing import Optional, Union
-from discord.ext import commands
 from datetime import datetime
-from time import time
+from os import environ
 from re import I, findall
+from secrets import token_hex
+from time import time
+from typing import Optional, Union
+
+import aiohttp
+import discord
+import pickledb  # nosec
+from discord.ext import commands
 
 try:
     from dotenv import load_dotenv
@@ -225,13 +225,15 @@ async def unsplash(ctx: commands.Context, keyword: str):
     async with ctx.typing():
         async with aiohttp.ClientSession() as session:
             async with session.get(
-                            f"https://source.unsplash.com/featured/?{keyword}",
-                            timeout=10,
-                        ) as r:
+                f"https://source.unsplash.com/featured/?{keyword}",
+                timeout=10,
+            ) as r:
                 if r.ok:
                     await ctx.reply(r.url)
                 else:
-                    await ctx.reply(f"**ERROR!** ({str(r.status_code)} | {hash(r.json())})")
+                    await ctx.reply(
+                        f"**ERROR!** ({str(r.status_code)} | {hash(r.json())})"
+                    )
 
 
 @client.command()
@@ -611,7 +613,9 @@ async def ban(
         if isinstance(delete_message_days, int) and (
             delete_message_days < 1 or delete_message_days > 7
         ):
-            raise commands.BadArgument("delete_message_days must be between 1 and 7")
+            raise commands.BadArgument(
+                "delete_message_days must be between 1 and 7"
+            )
         # //if isinstance(reason, tuple):
         # //    reason = " ".join(reason)
         if isinstance(user, int):
@@ -846,16 +850,11 @@ async def on_message(message):
         )
     ):
         await message.delete()
-        if (
-            db.get(str(message.guild.id))["regex"][1]
-            == "kick"
-        ):
+        if db.get(str(message.guild.id))["regex"][1] == "kick":
             await message.guild.kick(
                 message.author, reason="Matched regex."
             )
-        elif (
-            db.get(str(message.guild.id))["regex"][1] == "ban"
-        ):
+        elif db.get(str(message.guild.id))["regex"][1] == "ban":
             await message.guild.ban(
                 message.author, reason="Matched regex."
             )
@@ -950,7 +949,9 @@ def main():
     try:
         client.run(environ["BOT_TOKEN"])
     except KeyError as e:
-        print(f"\n[ERROR] Environment variable `{e.args[0]}` is not set.")
+        print(
+            f"\n[ERROR] Environment variable `{e.args[0]}` is not set."
+        )
         raise
 
 

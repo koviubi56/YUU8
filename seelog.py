@@ -29,7 +29,7 @@ if __name__ == "__main__":
             with open(user) as file:
                 fnotfound = False
                 print("-" * 180)
-                print('{:>180}'.format(user))
+                print(f'{user:>180}')
                 print("\n" * 40)
                 content = []
                 for line in file:
