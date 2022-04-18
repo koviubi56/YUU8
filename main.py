@@ -161,11 +161,7 @@ class MyParameter:
 def testUser(user: Union[discord.Member, discord.User]) -> bool:
     reloadDB()
     if db.get("BANNED_USERS") is False:
-        raise Exception(
-            'db.get("BANNED_USERS") is {}'.format(
-                db.get("BANNED_USERS")
-            )
-        )
+        raise Exception(f'db.get("BANNED_USERS") is {db.get("BANNED_USERS")}')
     return user.id in db.get("BANNED_USERS")
 
 
@@ -303,10 +299,9 @@ async def suggest(ctx: commands.Context, *suggestion: str):
         except Exception:
             embed = myEmbed(
                 desc=suggestion,
-                footer="There was an error when we wanted to create this embed. Please report every bug at {}".format(
-                    urls.issue.BUG
-                ),
+                footer=f"There was an error when we wanted to create this embed. Please report every bug at {urls.issue.BUG}",
             )
+
 
         msg = await chn.send(embed=embed)
         await msg.add_reaction("⬆️")
@@ -412,7 +407,7 @@ async def purge(ctx: commands.Context, max: int):
     if testUser(ctx.author):
         return
     try:
-        int(max)
+        max
     except Exception:
         await ctx.reply(
             embed=myEmbed(
@@ -424,7 +419,7 @@ async def purge(ctx: commands.Context, max: int):
         return
     reloadDB()
     # 255 is a nice number. There isn't (or i don't know of) any type of API limitation, that is 255. It's just a nice number.
-    if int(max) >= 255 and ctx.author.id not in db.get("PURGE_LIMIT"):
+    if max >= 255 and ctx.author.id not in db.get("PURGE_LIMIT"):
         await ctx.reply(
             embed=myEmbed(
                 desc=f"> Don't delete the whole channel\n- YUU8\n*(If you want to delete a lot of messages, contact the developers at {urls.issue.BLANK})*",
@@ -434,7 +429,7 @@ async def purge(ctx: commands.Context, max: int):
         )
         return
     try:
-        tmp = await ctx.channel.purge(limit=int(max) + 1)
+        tmp = await ctx.channel.purge(limit=max + 1)
     except Exception:
         raise
     else:
@@ -442,10 +437,8 @@ async def purge(ctx: commands.Context, max: int):
         # *                                                                                                             VVVVVVVV
         await ctx.channel.send(
             embed=myEmbed(
-                desc=f"{str(len(tmp))} messages have been deleted",
-                color=color.OKGREEN
-                if int(max) < 255
-                else color.YELLOW,
+                desc=f"{len(tmp)} messages have been deleted",
+                color=color.OKGREEN if max < 255 else color.YELLOW,
                 footer=f"This user have been reached the purge limit! Report hackers/bad people at {urls.issue.HACKER} and they get banned from using this bot."
                 if len(tmp) >= 255
                 else "This message will be automaticly deleted after 5 seconds.",
