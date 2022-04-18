@@ -26,10 +26,10 @@ if __name__ == "__main__":
     user = DEFAULT if user == "" else user
     while True:
         try:
-            with open(user) as file:
+            with open(user, encoding="utf-8") as file:
                 fnotfound = False
                 print("-" * 180)
-                print(f'{user:>180}')
+                print(f"{user:>180}")
                 print("\n" * 40)
                 content = []
                 for line in file:
@@ -39,12 +39,16 @@ if __name__ == "__main__":
                 repeat = False
             while not repeat:
                 sleep(0.1)
-                with open(user) as file:
-                    x = file.readlines()
-                    if x != content:
+                with open(user, encoding="utf-8") as file:
+                    current = file.readlines()
+                    if current != content:
                         repeat = True
         except FileNotFoundError:
             if not fnotfound:
-                print('{:>180}'.format('File not found. Retry after 0.5s'))
+                print(
+                    "{:>180}".format(  # noqa
+                        "File not found. Retry after 0.5s"
+                    )
+                )
                 fnotfound = True
             sleep(0.5)

@@ -1,0 +1,6 @@
+[flake8]
+extend-ignore = W503
+count = True
+show-source = True
+statistics = True
+extend-exclude = *cache*,venv

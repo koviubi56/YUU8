@@ -14,18 +14,18 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
-
+# pylint: disable=too-many-lines
 from datetime import datetime
 from os import environ
 from re import I, findall
 from secrets import token_hex
 from time import time
-from typing import Optional, Union
+from typing import Literal, Optional, Union
 
 import aiohttp
 import discord
-import pickledb  # nosec
 from discord.ext import commands
+import pickledb  # nosec  # noqa
 
 try:
     from dotenv import load_dotenv
@@ -38,7 +38,7 @@ if __name__ == "__main__":
     print("Loading...")
 
 intents = discord.Intents.default()
-intents.members = True
+intents.members = True  # pylint: disable=assigning-non-slot
 
 client = commands.Bot(
     command_prefix=".",
@@ -47,16 +47,24 @@ client = commands.Bot(
     intents=intents,
 )
 
-# TODO: Turn this OFF
+# ! Turn this OFF
 DEBUG = True
 db = pickledb.load("database.db", True)
 
 
-def reloadDB():
-    db.load("database.db", True)
+def reload_db() -> Literal[True]:
+    """
+    Reload the database.
+
+    Returns:
+        Literal[True]: Always True
+    """
+    return db.load("database.db", True)
 
 
-class color:
+class Color:
+    """Colors."""
+
     WHITE = 0xFFFFFF
     BLACK = 0x000000
 
@@ -84,34 +92,37 @@ class color:
     DISCORDFUCHSIA = 0xEB459E
 
 
-class urls:
-    # TODO: Don't forget to change these links if needed!
+class URLs:
+    """Some URLs."""
+
+    # ! Don't forget to change these links if needed!
     # There are no unnecessary URLs here.
-    class issue:
+    class Issue:
+        """URLs for issues."""
+
         # https://github.com/koviubi56/YUU8/issues/new?assignees=&labels=Type%3A+Bug&template=bug_report.md&title=
-        # BUG = "https://yerl.org/If5za9uTZntiwQmVXdVugX"
         BUG = "https://koviubi56-redirect.glitch.me/1.html"
         # https://github.com/koviubi56/YUU8/issues/new
-        # BLANK = "https://yerl.org/9TwySiyYmZoSCHsiXYb90t"
         BLANK = "https://koviubi56-redirect.glitch.me/2.html"
         # https://github.com/koviubi56/YUU8/issues/new?assignees=&labels=Priority%3A+Medium&template=report-bad-user.md&title=
-        # HACKER = "https://yerl.org/eCPRDRalWRL5e8mqn8bRKD"
         HACKER = "https://koviubi56-redirect.glitch.me/3.html"
 
-    class file:
+    class File:
+        """URLs for files."""
+
         # https://github.com/koviubi56/YUU8/blob/main/CONTRIBUTORS
         CONTRIBUTORS = "https://koviubi56-redirect.glitch.me/4.html"
 
 
 IFERROR = (
-    f"If you think this is an error, report it at {urls.issue.BUG}"
+    f"If you think this is an error, report it at {URLs.Issue.BUG}"
 )
 
 
-def myEmbed(
+def my_ember(
     desc: Optional[str] = None,
     title: Optional[str] = None,
-    color: Optional[int] = color.BLURPLE,
+    color: Optional[int] = Color.BLURPLE,
     footer: Optional[str] = None,
 ) -> discord.Embed:
     """
@@ -128,99 +139,122 @@ def myEmbed(
         discord.Embed: The embed
     """
     if title and desc:
-        embed = discord.Embed(
+        embed_ = discord.Embed(
             color=color,
             description=desc,
             timestamp=datetime.now(),
             title=title,
         )
     elif title:
-        embed = discord.Embed(
+        embed_ = discord.Embed(
             color=color, timestamp=datetime.now(), title=title
         )
     elif desc:
-        embed = discord.Embed(
+        embed_ = discord.Embed(
             color=color, description=desc, timestamp=datetime.now()
         )
     else:
-        embed = discord.Embed(color=color, timestamp=datetime.now())
+        embed_ = discord.Embed(color=color, timestamp=datetime.now())
     if footer:
-        embed.set_footer(text=footer)
-    return embed
+        embed_.set_footer(text=footer)
+    return embed_
 
 
 class MyParameter:
+    """My Parameter."""
+
     def __init__(self, name) -> None:
         self.myname = name
 
     @property
     def name(self) -> str:
+        """
+        The name of the parameter.
+
+        Returns:
+            str: The name of the parameter
+        """
         return str(self.myname)
 
 
-def testUser(user: Union[discord.Member, discord.User]) -> bool:
-    reloadDB()
+def test_user(user: Union[discord.Member, discord.User]) -> bool:
+    """
+    Test if the user is banned.
+
+    Args:
+        user (Union[discord.Member, discord.User]): The user to test
+
+    Raises:
+        Exception: If BANNED_USERS is False (no/wrong database?)
+
+    Returns:
+        bool: True if the user *is banned*, False otherwise
+    """
+    reload_db()
     if db.get("BANNED_USERS") is False:
         raise Exception(
-            'db.get("BANNED_USERS") is {}'.format(
-                db.get("BANNED_USERS")
-            )
+            f'db.get("BANNED_USERS") is {db.get("BANNED_USERS")}'
         )
     return user.id in db.get("BANNED_USERS")
 
 
 @client.event
 async def on_ready():
+    """When the bot is ready."""
     print("Ready!")
 
 
 @client.command()
 async def ping(ctx: commands.Context):
     """
-    # receiving time
-    receive = datetime.now()
+    [Command] Ping the bot.
 
-    # ping by us
-    pingbyus = float(receive.timestamp()) - \
-        float(ctx.message.created_at.timestamp())
+    Args:
+        ctx (commands.Context): The context
     """
-
-    if testUser(ctx.author):
+    if test_user(ctx.author):
         return
 
     # embed
-    embed = myEmbed(desc="The response time", title="Ping")
+    embed_ = my_ember(desc="The response time", title="Ping")
 
-    embed.add_field(
+    embed_.add_field(
         name="Ping by Discord",
         value=f"{client.latency:.2f} s/{client.latency * 1000:.2f} ms",
         inline=False,
     )
 
-    reloadDB()
+    reload_db()
     dbping = 0
     for _ in range(100):
         old = time()
-        reloadDB()
+        reload_db()
         db.getall()
         dbping += time() - old
     try:
         dbping /= 100
     except ZeroDivisionError:
         dbping = 0
-    embed.add_field(
+    embed_.add_field(
         name="Database latency",
         value=f"{dbping / 1000:f}s/{dbping:f}ms",
         inline=False,
     )
 
     # send
-    await ctx.send(embed=embed)
+    await ctx.send(embed=embed_)
 
 
 @client.command()
 async def unsplash(ctx: commands.Context, keyword: str):
-    if testUser(ctx.author):
+    """
+    [Command] Get an image from unsplash.
+
+    Args:
+        ctx (commands.Context): The context
+        keyword (str): The keyword to search
+    """
+    if test_user(ctx.author):
         return
     async with ctx.typing():
         async with aiohttp.ClientSession() as session:
@@ -240,21 +274,30 @@ async def unsplash(ctx: commands.Context, keyword: str):
 async def embed(
     ctx: commands.Context,
     title: str,
-    fieldTitle: str,
-    *fieldValue: str,
+    field_title: str,
+    *field_value: str,
 ):
-    if testUser(ctx.author):
-        return
-    embed = myEmbed(title=title)
+    """
+    [Command] Create an embed. By the way this is not really recommended.
 
-    embed.add_field(
-        name=fieldTitle,
-        value=" ".join(fieldValue)
-        if isinstance(fieldValue, tuple)
-        else fieldValue,
+    Args:
+        ctx (commands.Context): The context
+        title (str): The embed's title
+        field_title (str): The embed's field title
+        *field_value (str): The embed's field value
+    """
+    if test_user(ctx.author):
+        return
+    embed_ = my_ember(title=title)
+
+    embed_.add_field(
+        name=field_title,
+        value=" ".join(field_value)
+        if isinstance(field_value, tuple)
+        else field_value,
     )
 
-    await ctx.reply(embed=embed)
+    await ctx.reply(embed=embed_)
 
 
 @client.command()
@@ -262,32 +305,42 @@ async def embed(
 async def set_suggestion_channel(
     ctx: commands.Context, channel: discord.TextChannel
 ):
-    if testUser(ctx.author):
+    """
+    [Command] Set the suggestion channel.
+
+    Args:
+        ctx (commands.Context): The context
+        channel (discord.TextChannel): The channel to set
+    """
+    if test_user(ctx.author):
         return
-    try:
-        # check is there a dict for server
-        if db.get(ctx.guild.id) is False:
-            db.set(str(ctx.guild.id), {})
-        tmp = db.get(str(ctx.guild.id))
-        # set channel
-        tmp["suggestion_chn"] = channel.id
-        db.set(str(ctx.guild.id), tmp)
-    except Exception:
-        raise
-    else:
-        await ctx.reply(
-            embed=myEmbed(
-                desc=f"Set suggestion channel to {str(channel)}!",
-                color=color.OKGREEN,
-            )
+    # check is there a dict for server
+    if db.get(ctx.guild.id) is False:
+        db.set(str(ctx.guild.id), {})
+    tmp = db.get(str(ctx.guild.id))
+    # set channel
+    tmp["suggestion_chn"] = channel.id
+    db.set(str(ctx.guild.id), tmp)
+    await ctx.reply(
+        embed=my_ember(
+            desc=f"Set suggestion channel to {str(channel)}!",
+            color=Color.OKGREEN,
         )
+    )
 
 
 @client.command()
 async def suggest(ctx: commands.Context, *suggestion: str):
-    if testUser(ctx.author):
+    """
+    [Command] Suggest something.
+
+    Args:
+        ctx (commands.Context): The context
+        *suggestion (str): The suggestion
+    """
+    if test_user(ctx.author):
         return
-    reloadDB()
+    reload_db()
     if db.get(
         str(ctx.guild.id)
     ) is not False and "suggestion_chn" in db.get(str(ctx.guild.id)):
@@ -295,33 +348,42 @@ async def suggest(ctx: commands.Context, *suggestion: str):
             db.get(str(ctx.guild.id))["suggestion_chn"]
         )
         try:
-            embed = myEmbed(
+            embed_ = my_ember(
                 desc=suggestion
                 if isinstance(suggestion, str)
                 else " ".join(suggestion)
             )
         except Exception:
-            embed = myEmbed(
+            embed_ = my_ember(
                 desc=suggestion,
-                footer="There was an error when we wanted to create this embed. Please report every bug at {}".format(
-                    urls.issue.BUG
-                ),
+                footer="There was an error when we wanted to create this"
+                " embed. Please report every bug at "
+                + URLs.Issue.BUG,
             )
 
-        msg = await chn.send(embed=embed)
+        msg = await chn.send(embed=embed_)
         await msg.add_reaction("⬆️")
         await msg.add_reaction("⬇️")
     else:
-        embed = myEmbed(
+        embed_ = my_ember(
             desc="There isn't a suggestion channel for this server.",
-            color=color.RED,
+            color=Color.RED,
         )
-        await ctx.reply(embed=embed)
+        await ctx.reply(embed=embed_)
 
 
 @client.command()
 async def debug(ctx: commands.Context):
-    if testUser(ctx.author):
+    """
+    [Command] Debug the bot.
+
+    Args:
+        ctx (commands.Context): The context
+
+    Raises:
+        Exception: Debug exception
+    """
+    if test_user(ctx.author):
         return
     raise Exception(
         f"Debug exception was made by {str(ctx.author)} / {ctx.author.id}"
@@ -336,140 +398,149 @@ async def kick(
     user: Union[discord.User, discord.Member, int],
     *reason: str,
 ):
-    if testUser(ctx.author):
+    """
+    [Command] Kick a user.
+
+    Args:
+        ctx (commands.Context): The context
+        user (Union[discord.User, discord.Member, int]): The user to kick
+        *reason (str): The reason
+
+    Raises:
+        MissingRequiredArgument: If reason is missing
+    """
+    if test_user(ctx.author):
         return
-    try:
-        if user == client.user:
-            await ctx.reply(
-                embed=myEmbed(
-                    desc="After all my good work *this* is how you reward me? What a disgrace.",
-                    color=color.ORANGE,
-                )
+    if user == client.user:
+        await ctx.reply(
+            embed=my_ember(
+                desc="After all my good work *this* is how you reward me?"
+                " What a disgrace.",
+                color=Color.ORANGE,
             )
-            return
-        if not reason:
-            raise commands.MissingRequiredArgument(
-                MyParameter("reason")
-            )
-        # //if isinstance(reason, tuple):
-        # //    reason = " ".join(reason)
-        if isinstance(user, int):
-            user = await client.fetch_user(user)
-        # await user.kick(reason=reason)
-        await ctx.guild.kick(
-            user=user,
-            reason=" ".join(reason)
+        )
+        return
+    if not reason:
+        raise commands.MissingRequiredArgument(MyParameter("reason"))
+    # //if isinstance(reason, tuple):
+    # //    reason = " ".join(reason)
+    if isinstance(user, int):
+        user = await client.fetch_user(user)
+    # await user.kick(reason=reason)
+    await ctx.guild.kick(
+        user=user,
+        reason=" ".join(reason)
+        if isinstance(reason, tuple)
+        else reason,
+    )
+    reload_db()
+    tmp = (
+        db.get(str(ctx.guild.id))
+        if db.get(str(ctx.guild.id)) is not False
+        else {}
+    )
+    tmp[str(user.id)] = (
+        db.get(str(ctx.guild.id))[str(user.id)]
+        if tmp.get(str(user.id)) is not None
+        else {}
+    )
+    tmp[str(user.id)]["punishments"] = (
+        db.get(str(ctx.guild.id))[str(user.id)]["punishments"]
+        if tmp.get(str(user.id)).get("punishments") is not None
+        else []
+    )
+    tmp[str(user.id)]["punishments"].append(
+        {
+            "type": "kick",
+            "moderator": ctx.author.id,
+            "reason": " ".join(reason)
             if isinstance(reason, tuple)
             else reason,
+            "time": datetime.now().timestamp(),
+        }
+    )
+    db.set(str(ctx.guild.id), tmp)
+    __user = tmp[str(user.id)]
+    __punishments = __user["punishments"]
+    __last_punishment = __punishments[
+        len(tmp[str(user.id)]["punishments"]) - 1
+    ]
+    _reason = __last_punishment["reason"]
+    await ctx.reply(
+        embed=my_ember(
+            desc=f"Kicked {user} for reason `{_reason}`!",
+            color=Color.OKGREEN,
         )
-    except Exception:
-        raise
-    else:
-        reloadDB()
-        tmp = (
-            db.get(str(ctx.guild.id))
-            if db.get(str(ctx.guild.id)) is not False
-            else {}
-        )
-        tmp[str(user.id)] = (
-            db.get(str(ctx.guild.id))[str(user.id)]
-            if tmp.get(str(user.id)) is not None
-            else {}
-        )
-        tmp[str(user.id)]["punishments"] = (
-            db.get(str(ctx.guild.id))[str(user.id)]["punishments"]
-            if tmp.get(str(user.id)).get("punishments") is not None
-            else []
-        )
-        tmp[str(user.id)]["punishments"].append(
-            {
-                "type": "kick",
-                "moderator": ctx.author.id,
-                "reason": " ".join(reason)
-                if isinstance(reason, tuple)
-                else reason,
-                "time": datetime.now().timestamp(),
-            }
-        )
-        db.set(str(ctx.guild.id), tmp)
-        await ctx.reply(
-            embed=myEmbed(
-                desc="Kicked {} for reason `{}`!".format(
-                    str(user),
-                    tmp[str(user.id)]["punishments"][
-                        len(tmp[str(user.id)]["punishments"]) - 1
-                    ]["reason"],
-                ),
-                color=color.OKGREEN,
-            )
-        )
+    )
 
 
 @commands.cooldown(3, 10, commands.BucketType.user)
 @commands.has_permissions(manage_messages=True)
-@client.command()
-async def purge(ctx: commands.Context, max: int):
-    if testUser(ctx.author):
+@client.command(aliases=["clear"])
+async def purge(ctx: commands.Context, max_: int):
+    """
+    [Command] Purge messages.
+
+    Args:
+        ctx (commands.Context): The context
+        max_ (int): The max messages to delete
+    """
+    if test_user(ctx.author):
         return
     try:
-        int(max)
+        int(max_)
     except Exception:
         await ctx.reply(
-            embed=myEmbed(
+            embed=my_ember(
                 desc="Max must be an integer number.",
-                color=color.RED,
+                color=Color.RED,
                 footer=IFERROR,
             )
         )
         return
-    reloadDB()
-    # 255 is a nice number. There isn't (or i don't know of) any type of API limitation, that is 255. It's just a nice number.
-    if int(max) >= 255 and ctx.author.id not in db.get("PURGE_LIMIT"):
+    reload_db()
+    # 255 is a nice number. There isn't (or i don't know of) any type of API
+    # limitation, that is 255. It's just a nice number.
+    if int(max_) >= 255 and ctx.author.id not in db.get(
+        "PURGE_LIMIT"
+    ):
         await ctx.reply(
-            embed=myEmbed(
-                desc=f"> Don't delete the whole channel\n- YUU8\n*(If you want to delete a lot of messages, contact the developers at {urls.issue.BLANK})*",
-                color=color.ORANGE,
-                footer=f"Report hackers/bad people at {urls.issue.HACKER} and they get banned from using this bot.",
+            embed=my_ember(
+                desc=f"> Don't delete the whole channel\n- YUU8\n*(If you want"
+                f" to delete a lot of messages, contact the developers"
+                f" at {URLs.Issue.BLANK})*",
+                color=Color.ORANGE,
+                footer=f"Report hackers/bad people at {URLs.Issue.HACKER} and"
+                f" they get banned from using this bot.",
             )
         )
         return
-    try:
-        tmp = await ctx.channel.purge(limit=int(max) + 1)
-    except Exception:
-        raise
+    tmp = await ctx.channel.purge(limit=int(max_) + 1)
+    if int(max_) < 255:
+        _color = Color.OKGREEN
     else:
-        # *                                                                  This is important because if the user WANTS to delete lots of messages, then it should be yellow
-        # *                                                                                                             VVVVVVVV
-        await ctx.channel.send(
-            embed=myEmbed(
-                desc=f"{str(len(tmp))} messages have been deleted",
-                color=color.OKGREEN
-                if int(max) < 255
-                else color.YELLOW,
-                footer=f"This user have been reached the purge limit! Report hackers/bad people at {urls.issue.HACKER} and they get banned from using this bot."
-                if len(tmp) >= 255
-                else "This message will be automaticly deleted after 5 seconds.",
-            ),
-            delete_after=5.0,
+        _color = Color.YELLOW
+
+    if len(tmp) >= 255:
+        _footer = (
+            f"This user have been reached the purge limit!"
+            f" Report hackers/bad people at {URLs.Issue.HACKER} and they"
+            f" get banned from using this bot."
+        )
+    else:
+        _footer = (
+            "This message will be automaticly deleted after 5"
+            " seconds."
         )
 
-
-@commands.cooldown(3, 10, commands.BucketType.user)
-@commands.has_permissions(manage_messages=True)
-@client.command()
-async def clear(ctx: commands.Context, *args, **kwargs):
-    if testUser(ctx.author):
-        return
-    try:
-        await purge(ctx, *args, **kwargs)
-    except Exception:
-        await ctx.reply(
-            embed=myEmbed(
-                desc="Something went wrong.\nDo you passed the max parameter? Is it an integer number that is bigger than zero?\n`.clear <MAX>`",
-                color=color.RED,
-                footer=IFERROR,
-            )
-        )
+    await ctx.channel.send(
+        embed=my_ember(
+            desc=f"{str(len(tmp))} messages have been deleted",
+            color=_color,
+            footer=_footer,
+        ),
+        delete_after=5.0,
+    )
 
 
 @client.command()
@@ -477,69 +548,76 @@ async def clear(ctx: commands.Context, *args, **kwargs):
 async def set_report_channel(
     ctx: commands.Context, channel: discord.TextChannel
 ):
-    if testUser(ctx.author):
+    """
+    [Command] Set the report channel.
+
+    Args:
+        ctx (commands.Context): The context
+        channel (discord.TextChannel): The channel to set
+    """
+    if test_user(ctx.author):
         return
-    try:
-        reloadDB()
-        # check is there a dict for server
-        if db.get(ctx.guild.id) is False:
-            db.set(str(ctx.guild.id), {})
-        tmp = db.get(str(ctx.guild.id))
-        # set channel
-        tmp["report_chn"] = channel.id
-        db.set(str(ctx.guild.id), tmp)
-    except Exception:
-        raise
-    else:
-        await ctx.reply(
-            embed=myEmbed(
-                desc=f"Set report channel to {str(channel)}!",
-                color=color.OKGREEN,
-            )
+    reload_db()
+    # check is there a dict for server
+    if db.get(ctx.guild.id) is False:
+        db.set(str(ctx.guild.id), {})
+    tmp = db.get(str(ctx.guild.id))
+    # set channel
+    tmp["report_chn"] = channel.id
+    db.set(str(ctx.guild.id), tmp)
+    await ctx.reply(
+        embed=my_ember(
+            desc=f"Set report channel to {str(channel)}!",
+            color=Color.OKGREEN,
         )
+    )
 
 
 @client.command()
 async def report(
     ctx: commands.Context,
     user: Union[discord.User, discord.Member],
-    *reason,
+    *reason: str,
 ):
-    if testUser(ctx.author):
+    """
+    [Command] Report a user.
+
+    Args:
+        ctx (commands.Context): The context
+        user (Union[discord.User, discord.Member]): The user to report
+        *reason (str): The reason
+
+    Raises:
+        MissingRequiredArgument: If reason is missing
+    """
+    if test_user(ctx.author):
         return
-    reloadDB()
+    reload_db()
     if (
         db.get(str(ctx.guild.id)) is False
         or db.get(str(ctx.guild.id)).get("report_chn") is None
     ):
         await ctx.reply(
-            embed=myEmbed(
+            embed=my_ember(
                 desc="This server isn't have a report channel",
-                color=color.RED,
+                color=Color.RED,
             )
         )
         return
-    if (
-        reason is None
-        or reason == ""
-        or reason == " "
-        or reason == ()
-    ):
+    if not reason:
         raise commands.MissingRequiredArgument(MyParameter("reason"))
     chn = await client.fetch_channel(
         db.get(str(ctx.guild.id))["report_chn"]
     )
 
+    _reason = (
+        (" ".join(reason)) if isinstance(reason, tuple) else (reason)
+    )
     await chn.send(
-        embed=myEmbed(
+        embed=my_ember(
             title="Report",
-            desc="Report by: {report_by}\nReported user: {reported_user}\nReason: {reason}".format(
-                report_by=str(ctx.author),
-                reported_user=str(user),
-                reason=" ".join(reason)
-                if isinstance(reason, tuple)
-                else reason,
-            ),
+            desc=f"Report by: {ctx.author}\nReported user: {user}"
+            f"\nReason: {_reason}",
         )
     )
 
@@ -548,42 +626,47 @@ async def report(
 async def slowmode(
     ctx: commands.Context, cooldown: Optional[int] = None
 ):
-    if testUser(ctx.author):
+    """
+    [Command] Manage the slowmode.
+
+    Args:
+        ctx (commands.Context): The context
+        cooldown (Optional[int], optional): The cooldown. Defaults to None.
+    """
+    if test_user(ctx.author):
         return
     if cooldown is None:
         await ctx.reply(
-            embed=myEmbed(
-                desc=f"Slowmode is {ctx.channel.slowmode_delay}. If you want to disable it, type `.slowmode 0`"
+            embed=my_ember(
+                desc=f"Slowmode is {ctx.channel.slowmode_delay}. If you want"
+                " to disable it, type `.slowmode 0`"
                 if ctx.channel.slowmode_delay != 0
-                else "Slowmode is disabled. To enable it, type `.slowmode <COOLDOWN>`"
+                else "Slowmode is disabled. To enable it, type `.slowmode"
+                " <COOLDOWN>`"
             )
         )
         return
     if cooldown > 21600:
         await ctx.reply(
-            embed=myEmbed(
+            embed=my_ember(
                 desc="Cooldown must be between 0 and 21600",
-                color=color.RED,
+                color=Color.RED,
             )
         )
         return
-    try:
-        await ctx.channel.edit(
-            reason=f"{str(ctx.author)} set the slowmode to {cooldown}",
-            slowmode_delay=max(cooldown, 0),
-        )
+    await ctx.channel.edit(
+        reason=f"{str(ctx.author)} set the slowmode to {cooldown}",
+        slowmode_delay=max(cooldown, 0),
+    )
 
-    except Exception:
-        raise
-    else:
-        await ctx.reply(
-            embed=myEmbed(
-                desc=f"Slowmode set to {cooldown}"
-                if cooldown > 0
-                else "Slowmode disabled",
-                color=color.OKGREEN,
-            )
+    await ctx.reply(
+        embed=my_ember(
+            desc=f"Slowmode set to {cooldown}"
+            if cooldown > 0
+            else "Slowmode disabled",
+            color=Color.OKGREEN,
         )
+    )
 
 
 @client.command()
@@ -595,84 +678,89 @@ async def ban(
     reason: str,
     delete_message_days: Optional[int] = None,
 ):
-    if testUser(ctx.author):
+    """
+    [Command] Ban a user.
+
+    Args:
+        ctx (commands.Context): The context
+        user (Union[discord.User, discord.Member, int]): The user to ban
+        reason (str): The reason
+        delete_message_days (Optional[int], optional): Delete message days.\
+ Defaults to None.
+
+    Raises:
+        MissingRequiredArgument: If reason is missing
+        BadArgument: If delete_message_days is not in [1,7]
+    """
+    if test_user(ctx.author):
         return
-    try:
-        if user == client.user:
-            await ctx.reply(
-                embed=myEmbed(
-                    desc="After all my good work *this* is how you reward me? What a disgrace.",
-                    color=color.ORANGE,
-                )
+    if user == client.user:
+        await ctx.reply(
+            embed=my_ember(
+                desc="After all my good work *this* is how you reward me?"
+                " What a disgrace.",
+                color=Color.ORANGE,
             )
-            return
-        if reason == ():
-            raise commands.MissingRequiredArgument(
-                MyParameter("reason")
-            )
-        if isinstance(delete_message_days, int) and (
-            delete_message_days < 1 or delete_message_days > 7
-        ):
-            raise commands.BadArgument(
-                "delete_message_days must be between 1 and 7"
-            )
-        # //if isinstance(reason, tuple):
-        # //    reason = " ".join(reason)
-        if isinstance(user, int):
-            user = await client.fetch_user(user)
-        await ctx.guild.ban(
-            user=user,
-            reason=" ".join(reason)
+        )
+        return
+    if reason == ():
+        raise commands.MissingRequiredArgument(MyParameter("reason"))
+    if isinstance(delete_message_days, int) and (
+        delete_message_days < 1 or delete_message_days > 7
+    ):
+        raise commands.BadArgument(
+            "delete_message_days must be between 1 and 7"
+        )
+    # //if isinstance(reason, tuple):
+    # //    reason = " ".join(reason)
+    if isinstance(user, int):
+        user = await client.fetch_user(user)
+    await ctx.guild.ban(
+        user=user,
+        reason=" ".join(reason)
+        if isinstance(reason, tuple)
+        else reason,
+        delete_message_days=delete_message_days
+        if delete_message_days is not None
+        else 0,
+    )
+    reload_db()
+    tmp = (
+        db.get(str(ctx.guild.id))
+        if db.get(str(ctx.guild.id)) is not False
+        else {}
+    )
+    tmp[str(user.id)] = (
+        db.get(str(ctx.guild.id))[str(user.id)]
+        if tmp.get(str(user.id)) is not None
+        else {}
+    )
+    tmp[str(user.id)]["punishments"] = (
+        db.get(str(ctx.guild.id))[str(user.id)]["punishments"]
+        if tmp.get(str(user.id)).get("punishments") is not None
+        else []
+    )
+    tmp[str(user.id)]["punishments"].append(
+        {
+            "type": "ban",
+            "moderator": ctx.author.id,
+            "reason": " ".join(reason)
             if isinstance(reason, tuple)
             else reason,
-            delete_message_days=delete_message_days
+            "delete_message_days": delete_message_days
             if delete_message_days is not None
             else 0,
-        )
-    except Exception:
-        raise
-    else:
-        reloadDB()
-        tmp = (
-            db.get(str(ctx.guild.id))
-            if db.get(str(ctx.guild.id)) is not False
-            else {}
-        )
-        tmp[str(user.id)] = (
-            db.get(str(ctx.guild.id))[str(user.id)]
-            if tmp.get(str(user.id)) is not None
-            else {}
-        )
-        tmp[str(user.id)]["punishments"] = (
-            db.get(str(ctx.guild.id))[str(user.id)]["punishments"]
-            if tmp.get(str(user.id)).get("punishments") is not None
-            else []
-        )
-        tmp[str(user.id)]["punishments"].append(
-            {
-                "type": "ban",
-                "moderator": ctx.author.id,
-                "reason": " ".join(reason)
-                if isinstance(reason, tuple)
-                else reason,
-                "delete_message_days": delete_message_days
-                if delete_message_days is not None
-                else 0,
-                "time": datetime.now().timestamp(),
-            }
-        )
-        db.set(str(ctx.guild.id), tmp)
-        await ctx.reply(
-            embed=myEmbed(
-                desc="Banned {} for reason `{}`!".format(
-                    str(user),
-                    tmp[str(user.id)]["punishments"][
-                        len(tmp[str(user.id)]["punishments"]) - 1
-                    ]["reason"],
-                ),
-                color=color.OKGREEN,
-            )
-        )
+            "time": datetime.now().timestamp(),
+        }
+    )
+    db.set(str(ctx.guild.id), tmp)
+    __last_punishment = tmp[str(user.id)]["punishments"][
+        len(tmp[str(user.id)]["punishments"]) - 1
+    ]
+    _reason = __last_punishment["reason"]
+    await ctx.reply(
+        embed=my_ember(desc=f"Banned {user} for reason `{_reason}`!")
+    )
 
 
 @client.command()
@@ -683,42 +771,43 @@ async def unban(
     user: Union[discord.User, discord.Member, int],
     reason: str,
 ):
-    if testUser(ctx.author):
+    """
+    [Command] Unban a user.
+
+    Args:
+        ctx (commands.Context): The context
+        user (Union[discord.User, discord.Member, int]): The user to unban
+        reason (str): The reason
+
+    Raises:
+        MissingRequiredArgument: If reason is missing
+    """
+    if test_user(ctx.author):
         return
-    try:
-        if user == client.user:
-            await ctx.reply(
-                embed=myEmbed(
-                    desc="I'm not banned", color=color.ORANGE
-                )
-            )
-            return
-        if reason == ():
-            raise commands.MissingRequiredArgument(
-                MyParameter("reason")
-            )
-        if isinstance(user, int):
-            user = await client.fetch_user(user)
-        await ctx.guild.unban(
-            user=user,
-            reason=" ".join(reason)
-            if isinstance(reason, tuple)
-            else reason,
-        )
-    except Exception:
-        raise
-    else:
+    if user == client.user:
         await ctx.reply(
-            embed=myEmbed(
-                desc="Unbanned {} for reason `{}`!".format(
-                    str(user),
-                    " ".join(reason)
-                    if isinstance(reason, tuple)
-                    else reason,
-                ),
-                color=color.OKGREEN,
-            )
+            embed=my_ember(desc="I'm not banned", color=Color.ORANGE)
         )
+        return
+    if reason == ():
+        raise commands.MissingRequiredArgument(MyParameter("reason"))
+    if isinstance(user, int):
+        user = await client.fetch_user(user)
+    await ctx.guild.unban(
+        user=user,
+        reason=" ".join(reason)
+        if isinstance(reason, tuple)
+        else reason,
+    )
+    _reason = (
+        (" ".join(reason)) if isinstance(reason, tuple) else (reason)
+    )
+    await ctx.reply(
+        embed=my_ember(
+            desc=f"Unbanned {user} for reason `{_reason}`!",
+            color=Color.OKGREEN,
+        )
+    )
 
 
 @client.command()
@@ -728,35 +817,60 @@ async def unban(
 async def regex(
     ctx: commands.Context,
     punishment: str,
-    regex: Optional[str] = None,
+    pattern: Optional[str] = None,
 ):
-    if testUser(ctx.author):
+    """
+    [Command] Add a regex filter.
+
+    Args:
+        ctx (commands.Context): The context
+        punishment (str): The punishment
+        pattern (Optional[str], optional): The regex pattern. Defaults to None.
+
+    Raises:
+        MissingRequiredArgument: If pattern is missing
+    """
+    if test_user(ctx.author):
         return
     if punishment not in ["del", "kick", "ban", "no"]:
         ctx.reply(
-            'Punishment can be "del" to delete, "kick" to delete and kick, "ban" to delete and ban, or "no" to delete the regex.'
+            'Punishment can be "del" to delete, "kick" to delete and kick,'
+            ' "ban" to delete and ban, or "no" to delete the regex.'
         )
         return
     if punishment == "no":
         db.dadd(str(ctx.message.guild.id), ("regex", []))
         await ctx.reply(
-            embed=myEmbed(desc="Deleted regex!", color=color.OKGREEN)
+            embed=my_ember(desc="Deleted regex!", color=Color.OKGREEN)
         )
         return
-    if regex is None:
-        raise commands.MissingRequiredArgument(MyParameter("regex"))
-    db.dadd(str(ctx.message.guild.id), ("regex", [regex, "del"]))
+    if pattern is None:
+        raise commands.MissingRequiredArgument(MyParameter("pattern"))
+    db.dadd(str(ctx.message.guild.id), ("regex", [pattern, "del"]))
+    _desc = (
+        "If the regex `{}` matches anywhere, the message will be"
+        " deleted{}.\nIf someone (including hackers, admins and mods) changes"
+        ' the regex to "." or something else, then you can\'t turn off the'
+        " regex. For this reasons, type this command: `.get_code`."
+    )
+    if punishment == "ban":
+        _desc = _desc.format(
+            pattern,
+            ", and the user will be banned forever,"
+            " for reason: `Regex matched`",
+        )
+    elif punishment == "kick":
+        _desc = _desc.format(
+            pattern,
+            ", and the user will be kicked, for"
+            " reason: `Regex matched`",
+        )
+    else:
+        _desc = _desc.format(pattern, "")
     await ctx.reply(
-        embed=myEmbed(
-            desc='If the regex `{}` matches anywhere, the message will be deleted{}.\nIf someone (including hackers, admins and mods) changes the regex to "." or something else, then you can\'t turn off the regex. For this reasons, type this command: `.get_code`.'.format(
-                regex,
-                ", and the user will be banned forever, for reason: `Regex matched`"
-                if punishment == "ban"
-                else ", and the user will be kicked, for reason: `Regex matched`"
-                if punishment == "kick"
-                else "",
-            ),
-            color=color.OKGREEN,
+        embed=my_ember(
+            desc=_desc,
+            color=Color.OKGREEN,
             title="Added regex!",
         )
     )
@@ -764,12 +878,18 @@ async def regex(
 
 @client.command()
 async def get_code(ctx: commands.Context):
+    """
+    [Command] Get the code for the regex.
+
+    Args:
+        ctx (commands.Context): The context
+    """
     if ctx.author != ctx.guild.owner:
         await ctx.reply(
-            embed=myEmbed(
+            embed=my_ember(
                 "Just the owner of the server can use this command, "
                 + str(ctx.guild.owner),
-                color=color.RED,
+                color=Color.RED,
             )
         )
         return
@@ -778,67 +898,103 @@ async def get_code(ctx: commands.Context):
         db.dadd(str(ctx.guild.id), ("code", token_hex(740)))
         dm = await ctx.guild.owner.create_dm()
         await dm.send(
-            "This is the code for your server. This MUST be kept a secret! DO NOT share it even with your admins, mods!\n* Disable regex (in DM): `disable regex <SERVER ID> <CODE>` replace <SERVER ID> with the server's ID, <CODE> with the code.\n* Generate a new code (in DM): `new code <SERVER ID> <OLD CODE>` replace <SERVER ID> with your server's ID, <OLD CODE> with the (old) code.\n* Remove code (in DM): `remove code <SERVER ID> <CODE>` replace <SERVER ID> with your server's ID, <CODE> with the code.\n\nThis is the code:\n```\n{}\n```".format(
-                db.dget(str(ctx.guild.id), "code")
-            )
+            "This is the code for your server. This MUST be kept a secret! DO"
+            " NOT share it even with your admins, mods!\n* Disable regex (in"
+            " DM): `disable regex <SERVER ID> <CODE>` replace <SERVER ID> with"
+            " the server's ID, <CODE> with the code.\n* Generate a new code"
+            " (in DM): `new code <SERVER ID> <OLD CODE>` replace <SERVER ID>"
+            " with your server's ID, <OLD CODE> with the (old) code.\n* Remove"
+            " code (in DM): `remove code <SERVER ID> <CODE>` replace <SERVER"
+            " ID> with your server's ID, <CODE> with the code.\n\nThis is the"
+            f' code:\n```\n{db.dget(str(ctx.guild.id), "code")}\n```'
         )
 
 
+async def on_dm(message: discord.Message):
+    """
+    On DM. (If message.guild is None)
+
+    Args:
+        message (discord.Message): The message
+    """
+    if message.content.startswith("disable regex"):
+        tmp = message.content.split(" ")
+        if (
+            db.get(str(tmp[2])) is False
+            or db.get(str(tmp[2])).get("code") is None
+            or db.dget(str(tmp[2]), "code") != tmp[3]
+        ):
+            await message.reply("No.")
+            return
+        # yes, I know that this is unnecessary, but I want 101% security
+        else:
+            db.dadd(str(tmp[2]), ("regex", []))
+            await message.reply(
+                "Done!\n(Note: For 69420% security you may want to"
+                " generate a new code.)"
+            )
+    if message.content.startswith("new code"):
+        tmp = message.content.split(" ")
+        if (
+            db.get(str(tmp[2])) is False
+            or db.get(str(tmp[2])).get("code") is None
+            or db.dget(str(tmp[2]), "code") != tmp[3]
+        ):
+            await message.reply("No.")
+            return
+        # yes, I know that this is unnecessary, but I want 101% security
+        else:
+            db.dadd(str(tmp[2]), ("code", token_hex(740)))
+            await message.reply(
+                "This is the code for your server. This MUST be kept as"
+                " a secret! DO NOT share it even with your admins, mods!\n"
+                "* Disable regex (in DM): `disable regex <SERVER ID>"
+                " <CODE>` replace <SERVER ID> with the server's ID, <CODE>"
+                " with the code.\n* Generate a new code (in DM): `new code"
+                " <OLD CODE>` replace <OLD CODE> with the (old) code.\n*"
+                " Remove code (in DM): `remove code <CODE>` replace <CODE>"
+                " with the code.\n\nThis is the code:"
+                f'\n```\n{db.dget(str(tmp[2]), "code")}\n```'
+            )
+    if message.content.startswith("remove code"):
+        tmp = message.content.split(" ")
+        if (
+            db.get(str(tmp[2])) is False
+            or db.get(str(tmp[2])).get("code") is None
+            or db.dget(str(tmp[2]), "code") != tmp[3]
+        ):
+            await message.reply("No.")
+            return
+        # yes, I know that this is unnecessary, but I want 101% security
+        else:
+            tmp2 = db.get(str(tmp[2]))
+            del tmp2["code"]
+            db.set(str(tmp[2]), tmp2)
+            await message.reply(
+                "This is the code for your server. This MUST be kept a"
+                " secret! DO NOT share it even with your admins, mods!\n*"
+                " Disable regex (in DM): `disable regex <SERVER ID>"
+                " <CODE>` replace <SERVER ID> with the server's ID, <CODE>"
+                " with the code.\n* Generate a new code (in DM): `new code"
+                " <OLD CODE>` replace <OLD CODE> with the (old) code.\n*"
+                " Remove code (in DM): `remove code <CODE>` replace <CODE>"
+                " with the code.\n\nThis is the code:"
+                f'\n```\n{db.dget(str(tmp[2]), "code")}\n```'
+            )
+    return
+
+
 @client.event
-async def on_message(message):
-    reloadDB()
+async def on_message(message: discord.Message):
+    """
+    On message event.
+
+    Args:
+        message (_type_): The message
+    """
+    reload_db()
     if message.guild is None:
-        if message.content.startswith("disable regex"):
-            tmp = message.content.split(" ")
-            if (
-                db.get(str(tmp[2])) is False
-                or db.get(str(tmp[2])).get("code") is None
-                or db.dget(str(tmp[2]), "code") != tmp[3]
-            ):
-                await message.reply("No.")
-                return
-            # yes, I know that this is unnecessary, but I want 101% security
-            else:
-                db.dadd(str(tmp[2]), ("regex", []))
-                await message.reply(
-                    "Done!\n(Note: For 69420% security you may want to generate a new code.)"
-                )
-        if message.content.startswith("new code"):
-            tmp = message.content.split(" ")
-            if (
-                db.get(str(tmp[2])) is False
-                or db.get(str(tmp[2])).get("code") is None
-                or db.dget(str(tmp[2]), "code") != tmp[3]
-            ):
-                await message.reply("No.")
-                return
-            # yes, I know that this is unnecessary, but I want 101% security
-            else:
-                db.dadd(str(tmp[2]), ("code", token_hex(740)))
-                await message.reply(
-                    "This is the code for your server. This MUST be kept a secret! DO NOT share it even with your admins, mods!\n* Disable regex (in DM): `disable regex <SERVER ID> <CODE>` replace <SERVER ID> with the server's ID, <CODE> with the code.\n* Generate a new code (in DM): `new code <OLD CODE>` replace <OLD CODE> with the (old) code.\n* Remove code (in DM): `remove code <CODE>` replace <CODE> with the code.\n\nThis is the code:\n```\n{}\n```".format(
-                        db.dget(str(tmp[2]), "code")
-                    )
-                )
-        if message.content.startswith("remove code"):
-            tmp = message.content.split(" ")
-            if (
-                db.get(str(tmp[2])) is False
-                or db.get(str(tmp[2])).get("code") is None
-                or db.dget(str(tmp[2]), "code") != tmp[3]
-            ):
-                await message.reply("No.")
-                return
-            # yes, I know that this is unnecessary, but I want 101% security
-            else:
-                tmp2 = db.get(str(tmp[2]))
-                del tmp2["code"]
-                db.set(str(tmp[2]), tmp2)
-                await message.reply(
-                    "This is the code for your server. This MUST be kept a secret! DO NOT share it even with your admins, mods!\n* Disable regex (in DM): `disable regex <SERVER ID> <CODE>` replace <SERVER ID> with the server's ID, <CODE> with the code.\n* Generate a new code (in DM): `new code <OLD CODE>` replace <OLD CODE> with the (old) code.\n* Remove code (in DM): `remove code <CODE>` replace <CODE> with the code.\n\nThis is the code:\n```\n{}\n```".format(
-                        db.dget(str(tmp[2]), "code")
-                    )
-                )
+        await on_dm(message)
         return
     if (
         str(message.guild.id) in db.db
@@ -869,42 +1025,54 @@ backslashn = "\n"
 async def on_command_error(
     ctx: commands.Context, error: commands.errors.CommandError
 ):
-    if testUser(ctx.author):
+    """
+    On command error
+
+    Args:
+        ctx (commands.Context): The context
+        error (commands.errors.CommandError): The error.
+
+    Raises:
+        error: Reraise if the error is unknown/unexpected or DEBUG is True.\
+ (It's a commands.errors.CommandError)
+    """
+    if test_user(ctx.author):
         return
     if isinstance(error, commands.CommandNotFound):
         return
     elif isinstance(error, commands.MissingPermissions):
         await ctx.reply(
-            embed=myEmbed(
+            embed=my_ember(
                 desc="Sorry, but you don't have permissions for that.",
-                color=color.RED,
+                color=Color.RED,
             )
         )
     elif isinstance(error, commands.MissingRequiredArgument):
         await ctx.reply(
-            embed=myEmbed(
+            embed=my_ember(
                 desc=error.args[0].capitalize(),
-                color=color.RED,
+                color=Color.RED,
                 footer="Please, do not abuse with these informations!",
             )
         )
     elif isinstance(error, commands.BadArgument):
         await ctx.reply(
-            embed=myEmbed(
+            embed=my_ember(
                 desc=error.args[0],
-                color=color.RED,
+                color=Color.RED,
                 footer="Please, do not abuse with these informations!",
             )
         )
     elif (
         isinstance(error, discord.Forbidden) and error.code == 50013
-    ) or error.args[
-        0
-    ] == "Command raised an exception: Forbidden: 403 Forbidden (error code: 50013): Missing Permissions":
+    ) or error.args[0] == (
+        "Command raised an exception: Forbidden: 403 Forbidden (error code:"
+        " 50013): Missing Permissions"
+    ):
         await ctx.reply(
-            embed=myEmbed(
+            embed=my_ember(
                 desc="I don't have permission to do that.",
-                color=color.RED,
+                color=Color.RED,
             )
         )
     else:
@@ -913,7 +1081,7 @@ async def on_command_error(
             (
                 f"""Something went wrong!
 For security reasons, we can't say more.
-Please, open an issue here: {urls.issue.BUG}.
+Please, open an issue here: {URLs.Issue.BUG}.
 Include, that we can't say details for security reasons!"""
                 for j in (
                     error.__class__.__name__,
@@ -924,28 +1092,36 @@ Include, that we can't say details for security reasons!"""
             ),
             f"""Something went wrong!
 Error: `{error.__class__.__name__}`
-If you think that this is an error that we can fix, open an issue here: {urls.issue.BUG} and include this:
+If you think that this is an error that we can fix, open an issue here:\
+ {URLs.Issue.BUG} and include this:
 ```py
 {error.__class__ = }
 {error.__cause__ = }{backslashn + str(error.args) if DEBUG else ""}
 ```
-If you help us, you will be in the CONTRIBUTORS file ({urls.file.CONTRIBUTORS})""",
+If you help us, you will be in the CONTRIBUTORS file\
+ ({URLs.File.CONTRIBUTORS})""",
         )
 
         # Send
         await ctx.reply(
-            embed=myEmbed(
+            embed=my_ember(
                 desc=tmp,
-                color=color.RED,
+                color=Color.RED,
                 footer="Please, do not abuse with these informations!",
             )
         )
-        raise error.__cause__
+        raise error
     if DEBUG:
-        raise error.__cause__
+        raise error
 
 
 def main():
+    """
+    Main function.
+
+    Raises:
+        KeyError: If the BOT_TOKEN env var is not set.
+    """
     try:
         client.run(environ["BOT_TOKEN"])
     except KeyError as e:
