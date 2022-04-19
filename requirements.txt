@@ -1,4 +1,4 @@
-aiohttp>=3.7.4  # CVE-2021-21330, GHSA-v6wp-4m6f-gcjg, CWE-601
-discord~=1.7.3
-pickledb~=0.9.2  # TODO: Change
-python-dotenv~=0.19.2
+aiohttp>=3.7.4  # GHSA-v6wp-4m6f-gcjg
+discord.py==1.7.3
+pickledb==0.9.2  # TODO: Change
+python-dotenv==0.19.2
