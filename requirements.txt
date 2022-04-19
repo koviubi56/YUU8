@@ -1,4 +1,9 @@
 aiohttp==3.8.0 # not directly required, pinned by Snyk to avoid a vulnerability
-discord.py==1.7.3
+# TODO: discord.py 1.7.3 (Jun 12, 2021, 4:09 PM UTC) requires
+#       "aiohttp>=3.6.0,<3.8.0" and the fix (to GHSA-v6wp-4m6f-gcjg) was made
+#       in 3.8.0 (or 3.7.4?). But `master` requires "aiohttp>=3.6.0,<4", and a
+#       new releas that allows 3.8.0 does not exists (yet),
+#       so we will use `master`.
+git+https://github.com/Rapptz/discord.py.git
 pickledb==0.9.2  # TODO: Change
 python-dotenv==0.19.2
