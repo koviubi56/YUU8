@@ -57,7 +57,7 @@ if environ.get("KEEPALIVE", "0") == "1":
     from fastapi.middleware.cors import CORSMiddleware
     import uvicorn
     from threading import Thread
-        
+
     app = FastAPI()
     app.add_middleware(
         CORSMiddleware,
@@ -66,12 +66,16 @@ if environ.get("KEEPALIVE", "0") == "1":
         allow_headers=["*"],
         allow_credentials=True,
     )
-        
+
     @app.get("/")
     def index():
         return 200
-            
-    Thread(target=lambda: uvicorn.run(app, host="0.0.0.0", port=8000), daemon=True).start()
+
+    Thread(
+        target=lambda: uvicorn.run(app, host="0.0.0.0", port=8000),
+        daemon=True,
+    ).start()
+
 
 def reload_db() -> Literal[True]:
     """
