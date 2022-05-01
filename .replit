@@ -1,2 +1,2 @@
 language = "python3"
-run = "python main.py"
+run = "python3 -m pip install -U pip setuptools wheel && pip install -Ur requirements.txt && python3 main.py"
