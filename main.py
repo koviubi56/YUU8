@@ -1,4 +1,4 @@
-git"""
+"""
 Copyright (C) 2021  Koviubi56
 
 This program is free software: you can redistribute it and/or modify
@@ -72,7 +72,7 @@ if environ.get("KEEPALIVE", "0") == "1":
         return 200
 
     Thread(
-        target=lambda: uvicorn.run(app, host="0.0.0.0", port=8000),
+        target=lambda: uvicorn.run(app, host="127.0.0.1", port=8000),
         daemon=True,
     ).start()
 
@@ -918,21 +918,19 @@ async def get_code(ctx: commands.Context):
             )
         )
         return
-    # yes, I know that this is unnecessary, but I want 101% security
-    else:
-        db.dadd(str(ctx.guild.id), ("code", token_hex(740)))
-        dm = await ctx.guild.owner.create_dm()
-        await dm.send(
-            "This is the code for your server. This MUST be kept a secret! DO"
-            " NOT share it even with your admins, mods!\n* Disable regex (in"
-            " DM): `disable regex <SERVER ID> <CODE>` replace <SERVER ID> with"
-            " the server's ID, <CODE> with the code.\n* Generate a new code"
-            " (in DM): `new code <SERVER ID> <OLD CODE>` replace <SERVER ID>"
-            " with your server's ID, <OLD CODE> with the (old) code.\n* Remove"
-            " code (in DM): `remove code <SERVER ID> <CODE>` replace <SERVER"
-            " ID> with your server's ID, <CODE> with the code.\n\nThis is the"
-            f' code:\n```\n{db.dget(str(ctx.guild.id), "code")}\n```'
-        )
+    db.dadd(str(ctx.guild.id), ("code", token_hex(740)))
+    dm = await ctx.guild.owner.create_dm()
+    await dm.send(
+        "This is the code for your server. This MUST be kept a secret! DO"
+        " NOT share it even with your admins, mods!\n* Disable regex (in"
+        " DM): `disable regex <SERVER ID> <CODE>` replace <SERVER ID> with"
+        " the server's ID, <CODE> with the code.\n* Generate a new code"
+        " (in DM): `new code <SERVER ID> <OLD CODE>` replace <SERVER ID>"
+        " with your server's ID, <OLD CODE> with the (old) code.\n* Remove"
+        " code (in DM): `remove code <SERVER ID> <CODE>` replace <SERVER"
+        " ID> with your server's ID, <CODE> with the code.\n\nThis is the"
+        f' code:\n```\n{db.dget(str(ctx.guild.id), "code")}\n```'
+    )
 
 
 async def on_dm(message: discord.Message):
@@ -951,13 +949,11 @@ async def on_dm(message: discord.Message):
         ):
             await message.reply("No.")
             return
-        # yes, I know that this is unnecessary, but I want 101% security
-        else:
-            db.dadd(str(tmp[2]), ("regex", []))
-            await message.reply(
-                "Done!\n(Note: For 69420% security you may want to"
-                " generate a new code.)"
-            )
+        db.dadd(str(tmp[2]), ("regex", []))
+        await message.reply(
+            "Done!\n(Note: For 69420% security you may want to"
+            " generate a new code.)"
+        )
     if message.content.startswith("new code"):
         tmp = message.content.split(" ")
         if (
@@ -967,20 +963,18 @@ async def on_dm(message: discord.Message):
         ):
             await message.reply("No.")
             return
-        # yes, I know that this is unnecessary, but I want 101% security
-        else:
-            db.dadd(str(tmp[2]), ("code", token_hex(740)))
-            await message.reply(
-                "This is the code for your server. This MUST be kept as"
-                " a secret! DO NOT share it even with your admins, mods!\n"
-                "* Disable regex (in DM): `disable regex <SERVER ID>"
-                " <CODE>` replace <SERVER ID> with the server's ID, <CODE>"
-                " with the code.\n* Generate a new code (in DM): `new code"
-                " <OLD CODE>` replace <OLD CODE> with the (old) code.\n*"
-                " Remove code (in DM): `remove code <CODE>` replace <CODE>"
-                " with the code.\n\nThis is the code:"
-                f'\n```\n{db.dget(str(tmp[2]), "code")}\n```'
-            )
+        db.dadd(str(tmp[2]), ("code", token_hex(740)))
+        await message.reply(
+            "This is the code for your server. This MUST be kept as"
+            " a secret! DO NOT share it even with your admins, mods!\n"
+            "* Disable regex (in DM): `disable regex <SERVER ID>"
+            " <CODE>` replace <SERVER ID> with the server's ID, <CODE>"
+            " with the code.\n* Generate a new code (in DM): `new code"
+            " <OLD CODE>` replace <OLD CODE> with the (old) code.\n*"
+            " Remove code (in DM): `remove code <CODE>` replace <CODE>"
+            " with the code.\n\nThis is the code:"
+            f'\n```\n{db.dget(str(tmp[2]), "code")}\n```'
+        )
     if message.content.startswith("remove code"):
         tmp = message.content.split(" ")
         if (
@@ -1065,7 +1059,7 @@ async def on_command_error(
         return
     if isinstance(error, commands.CommandNotFound):
         return
-    elif isinstance(error, commands.MissingPermissions):
+    if isinstance(error, commands.MissingPermissions):
         await ctx.reply(
             embed=my_ember(
                 desc="Sorry, but you don't have permissions for that.",
