@@ -45,4 +45,3 @@ flake8-assertive
 flake8-mock
 flake8-pytest
 flake8-pytestrail
-flake8-annotations-complexity
