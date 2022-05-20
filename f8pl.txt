@@ -9,7 +9,6 @@ flake8-comprehensions
 flake8-debugger
 flake8-django
 flake8-eradicate
-flake8-fastapi
 flake8-fixme
 flake8-jira-todo-checker
 flake8-logging-format
