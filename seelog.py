@@ -46,7 +46,7 @@ if __name__ == "__main__":
         except FileNotFoundError:
             if not fnotfound:
                 print(
-                    "{:>180}".format(
+                    "{:>180}".format(  # noqa: FS002
                         "File not found. Retry after 0.5s"
                     )
                 )  # noqa
