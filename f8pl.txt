@@ -2,7 +2,6 @@
 # Use "-U"!
 flake8-2020
 flake8-alfred
-flake8-broken-line
 flake8-bugbear
 flake8-builtins
 flake8-comprehensions
@@ -10,7 +9,6 @@ flake8-debugger
 flake8-django
 flake8-eradicate
 flake8-fixme
-flake8-jira-todo-checker
 flake8-logging-format
 flake8-pep3101
 flake8-printf-formatting
@@ -23,7 +21,6 @@ flake8-sql
 flake8-todo
 flake8-todos
 flake8-variables-names
-flake8-walrus
 jupyterlab-flake8
 pandas-vet
 pep8-naming
@@ -32,15 +29,10 @@ flake8-expression-complexity
 flake8-use-fstring
 flake8-length
 flake8-copyright
-darglint
 flake8-markdown
 flake8-rst
 flake8-polyfill
 flake8-codes
 flake8-tidy-imports
 Dlint
-flake8-aaa
 flake8-assertive
-flake8-mock
-flake8-pytest
-flake8-pytestrail
