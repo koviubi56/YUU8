@@ -15,48 +15,78 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 # pylint: disable=too-many-lines
+import asyncio
+import contextlib
 from datetime import datetime
-from os import environ
+import enum
+from os import getcwd  # pylint: disable=no-name-in-module
+from os import chdir, environ, getenv
+from pathlib import Path
 from re import I, findall
-from secrets import token_hex
+from secrets import SystemRandom, token_hex
 from time import time
+from traceback import print_exc
 from typing import Literal, Optional, Union
 
 import aiohttp
 import discord
-from discord.ext import commands
 import pickledb  # nosec  # noqa
+import youtube_dl
+from discord.ext import commands
+from imageio_ffmpeg import get_ffmpeg_exe
 
-try:
+with contextlib.suppress(ImportError):
     from dotenv import load_dotenv
-except ImportError:
-    pass
-else:
+
     load_dotenv()
 
 if __name__ == "__main__":
     print("Loading...")
 
+# ! Turn this OFF
+DEBUG = True
+
 intents = discord.Intents.default()
 intents.members = True  # pylint: disable=assigning-non-slot
-
+intents.message_content = True
 client = commands.Bot(
     command_prefix=".",
     description="A cool discord bot",
     owner_id=510548663496474660,
     intents=intents,
 )
-
-# ! Turn this OFF
-DEBUG = True
 db = pickledb.load("database.db", True)
+YTDL_FORMAT_OPTIONS = {
+    "format": "bestaudio/best",
+    "restrictfilenames": True,
+    "noplaylist": True,
+    "nocheckcertificate": True,
+    "ignoreerrors": False,
+    "logtostderr": False,
+    "quiet": not DEBUG,
+    "no_warnings": not DEBUG,
+    "verbose": DEBUG,
+    "default_search": "auto",
+    "source_address": "0.0.0.0",
+    # bind to ipv4 since ipv6 addresses cause issues sometimes
+}
+FFMPEG_OPTIONS = {"options": "-vn"}
+try:
+    _f = get_ffmpeg_exe()
+except RuntimeError:
+    _f = r"ffmpeg.exe"
+EXES = (_f, r"ffmpeg.exe")
+youtube_dl.utils.bug_reports_message = lambda: ""
+YTDL = youtube_dl.YoutubeDL(YTDL_FORMAT_OPTIONS)
 
+del _f
 
 if environ.get("KEEPALIVE", "0") == "1":
+    from threading import Thread
+
+    import uvicorn
     from fastapi import FastAPI
     from fastapi.middleware.cors import CORSMiddleware
-    import uvicorn
-    from threading import Thread
 
     app = FastAPI()
     app.add_middleware(
@@ -77,6 +107,16 @@ if environ.get("KEEPALIVE", "0") == "1":
     ).start()
 
 
+@contextlib.contextmanager
+def change_working_directory(path):
+    _old = getcwd()
+    chdir(path)
+    try:
+        yield
+    finally:
+        chdir(_old)
+
+
 def reload_db() -> Literal[True]:
     """
     Reload the database.
@@ -87,7 +127,7 @@ def reload_db() -> Literal[True]:
     return db.load("database.db", True)
 
 
-class Color:
+class Color(enum.IntEnum):
     """Colors."""
 
     WHITE = 0xFFFFFF
@@ -139,12 +179,10 @@ class URLs:
         CONTRIBUTORS = "https://koviubi56-redirect.glitch.me/4.html"
 
 
-IFERROR = (
-    f"If you think this is an error, report it at {URLs.Issue.BUG}"
-)
+IFERROR = f"If you think this is an error, report it at {URLs.Issue.BUG}"
 
 
-def my_ember(
+def my_embed(
     desc: Optional[str] = None,
     title: Optional[str] = None,
     color: Optional[int] = Color.BLURPLE,
@@ -217,292 +255,415 @@ def test_user(user: Union[discord.Member, discord.User]) -> bool:
     """
     reload_db()
     if db.get("BANNED_USERS") is False:
-        raise Exception(
-            f'db.get("BANNED_USERS") is {db.get("BANNED_USERS")}'
-        )
+        raise Exception(f'db.get("BANNED_USERS") is {db.get("BANNED_USERS")}')
     return user.id in db.get("BANNED_USERS")
 
 
 @client.event
 async def on_ready():
     """When the bot is ready."""
+    await client.tree.sync()
     print("Ready!")
 
 
-@client.command()
-async def ping(ctx: commands.Context):
-    """
-    [Command] Ping the bot.
-
-    Args:
-        ctx (commands.Context): The context
-    """
-    if test_user(ctx.author):
+@client.tree.command()
+async def ping(interaction: discord.Interaction):
+    """[Command] Ping the bot."""
+    if test_user(interaction.user):
         return
 
     # embed
-    embed_ = my_ember(desc="The response time", title="Ping")
+    embed_ = my_embed(desc="The response time", title="Ping")
 
-    embed_.add_field(
-        name="Ping by Discord",
-        value=f"{client.latency:.2f} s/{client.latency * 1000:.2f} ms",
-        inline=False,
-    )
-
-    reload_db()
-    dbping = 0
-    for _ in range(100):
-        old = time()
-        reload_db()
-        db.getall()
-        dbping += time() - old
     try:
-        dbping /= 100
-    except ZeroDivisionError:
-        dbping = 0
-    embed_.add_field(
-        name="Database latency",
-        value=f"{dbping / 1000:f}s/{dbping:f}ms",
-        inline=False,
-    )
+        embed_.add_field(
+            name="Ping by Discord",
+            value=f"{client.latency:.2f} s/{client.latency * 1000:.2f} ms",
+            inline=False,
+        )
+    except Exception:
+        print_exc()
+        embed_.add_field(
+            name="Ping by Discord",
+            value="Error",
+            inline=False,
+        )
+
+    try:
+        reload_db()
+        dbping = 0.0
+        for _ in range(100):
+            old = time()
+            reload_db()
+            db.getall()
+            dbping += time() - old
+        try:
+            dbping /= 100
+        except ZeroDivisionError:
+            dbping = 0
+        embed_.add_field(
+            name="Database latency",
+            value=f"{dbping / 1000:f}s/{dbping:f}ms",
+            inline=False,
+        )
+    except Exception:
+        print_exc()
+        embed_.add_field(
+            name="Database latency",
+            value="Error",
+            inline=False,
+        )
 
     # send
-    await ctx.send(embed=embed_)
+    await interaction.response.send_message(embed=embed_)
 
 
-@client.command()
-async def unsplash(ctx: commands.Context, keyword: str):
+@client.tree.command()
+@discord.app_commands.describe(keyword="THe keyword to search for")
+async def unsplash(interaction: discord.Interaction, keyword: str):
     """
     [Command] Get an image from unsplash.
 
     Args:
-        ctx (commands.Context): The context
         keyword (str): The keyword to search
     """
-    if test_user(ctx.author):
+    if test_user(interaction.user):
         return
-    async with ctx.typing():
+    try:
         async with aiohttp.ClientSession() as session:
+            url = f"https://source.unsplash.com/featured/?{keyword}"
+            # // print(url)
             async with session.get(
-                f"https://source.unsplash.com/featured/?{keyword}",
+                url,
                 timeout=10,
+                verify_ssl=False,
             ) as r:
                 if r.ok:
-                    await ctx.reply(r.url)
+                    await interaction.response.send_message(r.url)
                 else:
-                    await ctx.reply(
-                        f"**ERROR!** ({str(r.status_code)} | {hash(r.json())})"
+                    print(r.json())
+                    await interaction.response.send_message(
+                        embed=my_embed(
+                            desc=f"**ERROR!** ({str(r.status)} |"
+                            f" {hash(r.json())})",
+                            color=Color.RED,
+                            footer=f"Please report this to {URLs.Issue.BUG}",
+                        )
                     )
+    except Exception:
+        print_exc()
+        await interaction.response.send_message(
+            embed=my_embed(
+                "Uh-oh. Something went wrong :(. Maybe next time? If this"
+                f" doesn't stop please open an issue here: {URLs.Issue.BUG}",
+                color=Color.RED,
+            )
+        )
 
 
-@client.command()
+@client.tree.command()
+@discord.app_commands.describe(
+    desc="[OPTIONAL] The body of the embed; its description.",
+    title="[OPTIONAL] The title of the embed",
+    color="[OPTIONAL] The color of the embed. Must be one of:"
+    f" {', '.join(map(lambda co: co.name, Color))}",
+    field1_title="[OPTIONAL] The title of the 1st field. Required if"
+    " field1_value is passed.",
+    field1_value="[OPTIONAL] The value of the 1st field. Required if"
+    " field1_title is passed.",
+    field2_title="[OPTIONAL] The title of the 2nd field. Required if"
+    " field2_value is passed. The 1st field must be provided to have a 2nd"
+    " field.",
+    field2_value="[OPTIONAL] The value of the 2nd field. Required if"
+    " field2_title is passed. The 1st field must be provided to have a 2nd"
+    " field.",
+    field3_title="[OPTIONAL] The title of the 3rd field. Required if"
+    " field3_value is passed. The 1st and 2nd fields must be provided to have"
+    " a 3rd field.",
+    field3_value="[OPTIONAL] The value of the 3rd field. Required if"
+    " field3_title is passed. The 1st and 2nd fields must be provided to have"
+    " a 3rd field.",
+)
 async def embed(
-    ctx: commands.Context,
-    title: str,
-    field_title: str,
-    *field_value: str,
-):
+    interaction: discord.Interaction,
+    desc: Optional[str] = None,
+    title: Optional[str] = None,
+    color: str = "BLURPLE",
+    field1_title: Optional[str] = None,
+    field1_value: Optional[str] = None,
+    field2_title: Optional[str] = None,
+    field2_value: Optional[str] = None,
+    field3_title: Optional[str] = None,
+    field3_value: Optional[str] = None,
+):  # sourcery skip: remove-redundant-if
     """
-    [Command] Create an embed. By the way this is not really recommended.
+    [Command] Create an embed.
 
     Args:
-        ctx (commands.Context): The context
-        title (str): The embed's title
-        field_title (str): The embed's field title
-        *field_value (str): The embed's field value
+        desc: [OPTIONAL] The body of the embed; its description.
+        title: [OPTIONAL] The title of the embed
+        color: [OPTIONAL] The color of the embed.
+        field1_title: [OPTIONAL] The title of the 1st field. Required if\
+ field1_value is passed.
+        field1_value: [OPTIONAL] The value of the 1st field. Required if\
+ field1_title is passed.
+        field2_title: [OPTIONAL] The title of the 2nd field. Required if\
+ field2_value is passed. The 1st field must be provided to have a 2nd field.
+        field2_value: [OPTIONAL] The value of the 2nd field. Required if\
+ field2_title is passed. The 1st field must be provided to have a 2nd field.
+        field3_title: [OPTIONAL] The title of the 3rd field. Required if\
+ field3_value is passed. The 1st and 2nd fields must be provided to have a 3rd\
+ field.
+        field3_value: [OPTIONAL] The value of the 3rd field. Required if\
+ field3_title is passed. The 1st and 2nd fields must be provided to have a 3rd\
+ field.
     """
-    if test_user(ctx.author):
+    if test_user(interaction.user):
         return
-    embed_ = my_ember(title=title)
-
-    embed_.add_field(
-        name=field_title,
-        value=" ".join(field_value)
-        if isinstance(field_value, tuple)
-        else field_value,
+    try:
+        color_ = getattr(Color, color)
+    except Exception:
+        await interaction.response.send_message(
+            embed=my_embed(
+                f'Well idk what "{color}"'
+                " is. Please choose from"
+                f" {', '.join(map(lambda co: co.name, Color))}",
+                color=Color.RED,
+                footer=IFERROR,
+            ),
+            ephemeral=True,
+        )
+        return
+    embed_ = my_embed(
+        desc=desc,
+        title=title,
+        color=color_,
+        footer="Not official message by YUU8; user-generated by"
+        f" {interaction.user}",
     )
+    # field1
+    if (field1_title and (not field1_value)) or (
+        (not field1_title) and field1_value
+    ):
+        await interaction.response.send_message(
+            "Have title AND value for field 1.",
+            ephemeral=True,
+        )
+        return
+    if field1_title and field1_value:
+        embed_.add_field(name=field1_title, value=field1_value, inline=False)
+    # field2
+    if (field2_title and (not field2_value)) or (
+        (not field2_title) and field2_value
+    ):
+        await interaction.response.send_message(
+            "Have title AND value for field 2.",
+            ephemeral=True,
+        )
+        return
+    if field2_title and field2_value:
+        if not (field1_title and field1_value):
+            await interaction.response.send_message(
+                "How do you want a second field when you don't have a first"
+                " field?",
+                ephemeral=True,
+            )
+            return
+        embed_.add_field(name=field2_title, value=field2_value, inline=False)
+    # field3
+    if (field3_title and (not field3_value)) or (
+        (not field3_title) and field3_value
+    ):
+        await interaction.response.send_message(
+            "Have title AND value for field 3.",
+            ephemeral=True,
+        )
+        return
+    if field3_title and field3_value:
+        if not (field1_title and field1_value):
+            await interaction.response.send_message(
+                "How do you want a third field when you don't have a first"
+                " field?",
+                ephemeral=True,
+            )
+            return
+        if not (field2_title and field2_value):
+            await interaction.response.send_message(
+                "How do you want a third field when you don't have a second"
+                " field?",
+                ephemeral=True,
+            )
+            return
+        embed_.add_field(name=field3_title, value=field3_value, inline=False)
 
-    await ctx.reply(embed=embed_)
+    await interaction.response.send_message(embed=embed_)
 
 
-@client.command()
-@commands.has_permissions(manage_channels=True)
+@client.tree.command()
+@discord.app_commands.describe(
+    channel="The discord text channel that where reports should go"
+)
 async def set_suggestion_channel(
-    ctx: commands.Context, channel: discord.TextChannel
+    interaction: discord.Interaction, channel: discord.TextChannel
 ):
     """
     [Command] Set the suggestion channel.
 
     Args:
-        ctx (commands.Context): The context
         channel (discord.TextChannel): The channel to set
     """
-    if test_user(ctx.author):
+    if test_user(interaction.user):
+        return
+    if not interaction.user.resolved_permissions.manage_channels:
+        await interaction.response.send_message(
+            embed=my_embed(
+                "Not so fast! Who do you think you are? Until you can manage"
+                " channels, forget about setting the suggestion channel.",
+                color=Color.RED,
+            )
+        )
         return
     # check is there a dict for server
-    if db.get(ctx.guild.id) is False:
-        db.set(str(ctx.guild.id), {})
-    tmp = db.get(str(ctx.guild.id))
+    if db.get(interaction.guild.id) is False:
+        db.set(str(interaction.guild.id), {})
+    tmp = db.get(str(interaction.guild.id))
     # set channel
     tmp["suggestion_chn"] = channel.id
-    db.set(str(ctx.guild.id), tmp)
-    await ctx.reply(
-        embed=my_ember(
+    db.set(str(interaction.guild.id), tmp)
+    await interaction.response.send_message(
+        embed=my_embed(
             desc=f"Set suggestion channel to {str(channel)}!",
             color=Color.OKGREEN,
         )
     )
 
 
-@client.command()
-async def suggest(ctx: commands.Context, *suggestion: str):
+@client.tree.command()
+@discord.app_commands.describe(suggestion="The suggestion")
+async def suggest(interaction: discord.Interaction, suggestion: str):
     """
     [Command] Suggest something.
 
     Args:
-        ctx (commands.Context): The context
-        *suggestion (str): The suggestion
+        suggestion (str): The suggestion
     """
-    if test_user(ctx.author):
+    if test_user(interaction.user):
         return
     reload_db()
     if db.get(
-        str(ctx.guild.id)
-    ) is not False and "suggestion_chn" in db.get(str(ctx.guild.id)):
+        str(interaction.guild.id)
+    ) is not False and "suggestion_chn" in db.get(str(interaction.guild.id)):
         chn = await client.fetch_channel(
-            db.get(str(ctx.guild.id))["suggestion_chn"]
+            db.get(str(interaction.guild.id))["suggestion_chn"]
         )
-        try:
-            embed_ = my_ember(
-                desc=suggestion
-                if isinstance(suggestion, str)
-                else " ".join(suggestion)
-            )
-        except Exception:
-            embed_ = my_ember(
-                desc=suggestion,
-                footer="There was an error when we wanted to create this"
-                " embed. Please report every bug at "
-                + URLs.Issue.BUG,
-            )
+        embed_ = my_embed(
+            desc=suggestion, title=f"Suggestion by {interaction.user}"
+        )
 
         msg = await chn.send(embed=embed_)
         await msg.add_reaction("⬆️")
         await msg.add_reaction("⬇️")
+        await interaction.response.send_message(
+            embed=my_embed("Great! Suggestion sent.", color=Color.OKGREEN)
+        )
     else:
-        embed_ = my_ember(
+        embed_ = my_embed(
             desc="There isn't a suggestion channel for this server.",
             color=Color.RED,
         )
-        await ctx.reply(embed=embed_)
+        await interaction.response.send_message(embed=embed_)
 
 
-@client.command()
-async def debug(ctx: commands.Context):
-    """
-    [Command] Debug the bot.
-
-    Args:
-        ctx (commands.Context): The context
-
-    Raises:
-        Exception: Debug exception
-    """
-    if test_user(ctx.author):
-        return
-    raise Exception(
-        f"Debug exception was made by {str(ctx.author)} / {ctx.author.id}"
-    )
-
-
-@client.command()
-@commands.has_permissions(kick_members=True)
-@commands.cooldown(3, 10, commands.BucketType.user)
+@client.tree.command()
+@discord.app_commands.describe(
+    user="The user to kick", reason="The reason of the punishment"
+)
 async def kick(
-    ctx: commands.Context,
-    user: Union[discord.User, discord.Member, int],
-    *reason: str,
+    interaction: discord.Interaction,
+    user: Union[discord.User, discord.Member],
+    reason: str,
 ):
     """
     [Command] Kick a user.
 
     Args:
-        ctx (commands.Context): The context
-        user (Union[discord.User, discord.Member, int]): The user to kick
-        *reason (str): The reason
-
-    Raises:
-        MissingRequiredArgument: If reason is missing
+        user (Union[discord.User, discord.Member]): The user to kick
+        reason (str): The reason
     """
-    if test_user(ctx.author):
+    if test_user(interaction.user):
+        return
+    if not interaction.user.resolved_permissions.kick_members:
+        await interaction.response.send_message(
+            embed=my_embed(
+                "Not so fast! Who do you think you are? Until you can kick"
+                " members yourself, forget about kicking anyone.",
+                color=Color.RED,
+                footer="Basically you don't have the permission to kick"
+                " people",
+            )
+        )
         return
     if user == client.user:
-        await ctx.reply(
-            embed=my_ember(
+        await interaction.response.send_message(
+            embed=my_embed(
                 desc="After all my good work *this* is how you reward me?"
                 " What a disgrace.",
                 color=Color.ORANGE,
             )
         )
         return
-    if not reason:
-        raise commands.MissingRequiredArgument(MyParameter("reason"))
-    # //if isinstance(reason, tuple):
-    # //    reason = " ".join(reason)
-    if isinstance(user, int):
-        user = await client.fetch_user(user)
-    # await user.kick(reason=reason)
-    await ctx.guild.kick(
-        user=user,
-        reason=" ".join(reason)
-        if isinstance(reason, tuple)
-        else reason,
-    )
+    # if isinstance(user, int):
+    #     user = await client.fetch_user(user)
+    try:
+        await interaction.guild.kick(
+            user=user,
+            reason=reason,
+        )
+    except discord.errors.Forbidden:
+        await interaction.response.send_message(
+            embed=my_embed(
+                f"Well... I can't kick members :(. Or maybe {user} is above"
+                " me?",
+                color=Color.RED,
+            )
+        )
+        return
     reload_db()
     tmp = (
-        db.get(str(ctx.guild.id))
-        if db.get(str(ctx.guild.id)) is not False
+        db.get(str(interaction.guild.id))
+        if db.get(str(interaction.guild.id)) is not False
         else {}
     )
     tmp[str(user.id)] = (
-        db.get(str(ctx.guild.id))[str(user.id)]
+        db.get(str(interaction.guild.id))[str(user.id)]
         if tmp.get(str(user.id)) is not None
         else {}
     )
     tmp[str(user.id)]["punishments"] = (
-        db.get(str(ctx.guild.id))[str(user.id)]["punishments"]
+        db.get(str(interaction.guild.id))[str(user.id)]["punishments"]
         if tmp.get(str(user.id)).get("punishments") is not None
         else []
     )
     tmp[str(user.id)]["punishments"].append(
         {
             "type": "kick",
-            "moderator": ctx.author.id,
-            "reason": " ".join(reason)
-            if isinstance(reason, tuple)
-            else reason,
+            "moderator": interaction.user.id,
+            "reason": reason,
             "time": datetime.now().timestamp(),
         }
     )
-    db.set(str(ctx.guild.id), tmp)
-    __user = tmp[str(user.id)]
-    __punishments = __user["punishments"]
-    __last_punishment = __punishments[
-        len(tmp[str(user.id)]["punishments"]) - 1
-    ]
-    _reason = __last_punishment["reason"]
-    await ctx.reply(
-        embed=my_ember(
-            desc=f"Kicked {user} for reason `{_reason}`!",
+    db.set(str(interaction.guild.id), tmp)
+    await interaction.response.send_message(
+        embed=my_embed(
+            desc=f"Kicked {user} for reason `{reason}`!",
             color=Color.OKGREEN,
         )
     )
 
 
-@commands.cooldown(3, 10, commands.BucketType.user)
-@commands.has_permissions(manage_messages=True)
-@client.command(aliases=["clear"])
-async def purge(ctx: commands.Context, max_: int):
+@client.tree.command()
+@discord.app_commands.describe(max_="The number of messages to remove")
+async def purge(interaction: discord.Interaction, max_: int):
     """
     [Command] Purge messages.
 
@@ -510,27 +671,35 @@ async def purge(ctx: commands.Context, max_: int):
         ctx (commands.Context): The context
         max_ (int): The max messages to delete
     """
-    if test_user(ctx.author):
+    if test_user(interaction.user):
+        return
+    if not interaction.user.resolved_permissions.manage_messages:
+        await interaction.response.send_message(
+            embed=my_embed(
+                "Not so fast! Who do you think you are? Until you can manage"
+                " messages yourself, forget about purge.",
+                color=Color.RED,
+                footer="Basically you don't have the permission to manage"
+                " messages",
+            )
+        )
         return
     try:
         int(max_)
-    except Exception:
-        await ctx.reply(
-            embed=my_ember(
+    except ValueError:
+        await interaction.response.send_message(
+            embed=my_embed(
                 desc="Max must be an integer number.",
                 color=Color.RED,
-                footer=IFERROR,
             )
         )
         return
     reload_db()
     # 255 is a nice number. There isn't (or i don't know of) any type of API
     # limitation, that is 255. It's just a nice number.
-    if int(max_) >= 255 and ctx.author.id not in db.get(
-        "PURGE_LIMIT"
-    ):
-        await ctx.reply(
-            embed=my_ember(
+    if int(max_) >= 255 and interaction.user.id not in db.get("PURGE_LIMIT"):
+        await interaction.response.send_message(
+            embed=my_embed(
                 desc=f"> Don't delete the whole channel\n- YUU8\n*(If you want"
                 f" to delete a lot of messages, contact the developers"
                 f" at {URLs.Issue.BLANK})*",
@@ -540,152 +709,154 @@ async def purge(ctx: commands.Context, max_: int):
             )
         )
         return
-    tmp = await ctx.channel.purge(limit=int(max_) + 1)
+    tmp = await interaction.channel.purge(limit=int(max_))
     if int(max_) < 255:
         _color = Color.OKGREEN
     else:
         _color = Color.YELLOW
 
-    if len(tmp) >= 255:
-        _footer = (
-            f"This user have been reached the purge limit!"
-            f" Report hackers/bad people at {URLs.Issue.HACKER} and they"
-            f" get banned from using this bot."
-        )
-    else:
-        _footer = (
-            "This message will be automaticly deleted after 5"
-            " seconds."
-        )
-
-    await ctx.channel.send(
-        embed=my_ember(
-            desc=f"{str(len(tmp))} messages have been deleted",
+    await interaction.response.send_message(
+        embed=my_embed(
+            desc=f"{len(tmp)} messages have been deleted",
             color=_color,
-            footer=_footer,
         ),
-        delete_after=5.0,
+        ephemeral=True,
     )
 
 
-@client.command()
-@commands.has_permissions(manage_channels=True)
+@client.tree.command()
 async def set_report_channel(
-    ctx: commands.Context, channel: discord.TextChannel
+    interaction: discord.Interaction, channel: discord.TextChannel
 ):
     """
     [Command] Set the report channel.
 
     Args:
-        ctx (commands.Context): The context
         channel (discord.TextChannel): The channel to set
     """
-    if test_user(ctx.author):
+    if test_user(interaction.user):
+        return
+    if not interaction.user.resolved_permissions.manage_channels:
+        await interaction.response.send_message(
+            embed=my_embed(
+                "Not so fast! Who do you think you are? Until you can manage"
+                " channels yourself, forget about setting the report channel.",
+                color=Color.RED,
+                footer="Basically you don't have the permission to manage"
+                " channels",
+            )
+        )
         return
     reload_db()
     # check is there a dict for server
-    if db.get(ctx.guild.id) is False:
-        db.set(str(ctx.guild.id), {})
-    tmp = db.get(str(ctx.guild.id))
+    if db.get(interaction.guild.id) is False:
+        db.set(str(interaction.guild.id), {})
+    tmp = db.get(str(interaction.guild.id))
     # set channel
     tmp["report_chn"] = channel.id
-    db.set(str(ctx.guild.id), tmp)
-    await ctx.reply(
-        embed=my_ember(
+    db.set(str(interaction.guild.id), tmp)
+    await interaction.response.send_message(
+        embed=my_embed(
             desc=f"Set report channel to {str(channel)}!",
             color=Color.OKGREEN,
         )
     )
 
 
-@client.command()
+@client.tree.command()
 async def report(
-    ctx: commands.Context,
+    interaction: discord.Interaction,
     user: Union[discord.User, discord.Member],
-    *reason: str,
+    reason: str,
 ):
     """
     [Command] Report a user.
 
     Args:
-        ctx (commands.Context): The context
         user (Union[discord.User, discord.Member]): The user to report
-        *reason (str): The reason
-
-    Raises:
-        MissingRequiredArgument: If reason is missing
+        reason (str): The reason
     """
-    if test_user(ctx.author):
+    if test_user(interaction.user):
         return
     reload_db()
     if (
-        db.get(str(ctx.guild.id)) is False
-        or db.get(str(ctx.guild.id)).get("report_chn") is None
+        db.get(str(interaction.guild.id)) is False
+        or db.get(str(interaction.guild.id)).get("report_chn") is None
     ):
-        await ctx.reply(
-            embed=my_ember(
+        await interaction.response.send_message(
+            embed=my_embed(
                 desc="This server isn't have a report channel",
                 color=Color.RED,
             )
         )
         return
-    if not reason:
-        raise commands.MissingRequiredArgument(MyParameter("reason"))
     chn = await client.fetch_channel(
-        db.get(str(ctx.guild.id))["report_chn"]
+        db.get(str(interaction.guild.id))["report_chn"]
     )
 
-    _reason = (
-        (" ".join(reason)) if isinstance(reason, tuple) else (reason)
-    )
     await chn.send(
-        embed=my_ember(
+        embed=my_embed(
             title="Report",
-            desc=f"Report by: {ctx.author}\nReported user: {user}"
-            f"\nReason: {_reason}",
+            desc=f"Report by: {interaction.user}\nReported user: {user}"
+            f"\nReason: {reason}",
         )
     )
+    await interaction.response.send_message(
+        embed=my_embed("OK. Report was sent.", color=Color.OKGREEN)
+    )
 
 
-@client.command()
+@client.tree.command()
+@discord.app_commands.describe(
+    cooldown="The slowmode in seconds. 0 to disable. Must be between [0,21600]"
+)
 async def slowmode(
-    ctx: commands.Context, cooldown: Optional[int] = None
+    interaction: discord.Interaction, cooldown: Optional[int] = None
 ):
     """
     [Command] Manage the slowmode.
 
     Args:
-        ctx (commands.Context): The context
         cooldown (Optional[int], optional): The cooldown. Defaults to None.
     """
-    if test_user(ctx.author):
+    if test_user(interaction.user):
+        return
+    if not interaction.user.resolved_permissions.manage_channels:
+        await interaction.response.send_message(
+            embed=my_embed(
+                "Not so fast! Who do you think you are? Until you can manage"
+                " channels yourself, forget about setting the slowmode.",
+                color=Color.RED,
+                footer="Basically you don't have the permission to manage"
+                " channels",
+            )
+        )
         return
     if cooldown is None:
-        await ctx.reply(
-            embed=my_ember(
-                desc=f"Slowmode is {ctx.channel.slowmode_delay}. If you want"
-                " to disable it, type `.slowmode 0`"
-                if ctx.channel.slowmode_delay != 0
-                else "Slowmode is disabled. To enable it, type `.slowmode"
-                " <COOLDOWN>`"
+        await interaction.response.send_message(
+            embed=my_embed(
+                desc=f"Slowmode is {interaction.channel.slowmode_delay}. If"
+                " you want to disable it, set it to 0"
+                if interaction.channel.slowmode_delay != 0
+                else "Slowmode is disabled."
             )
         )
         return
     if cooldown > 21600:
-        await ctx.reply(
-            embed=my_ember(
+        await interaction.response.send_message(
+            embed=my_embed(
                 desc="Cooldown must be between 0 and 21600",
                 color=Color.RED,
             )
         )
         return
-    await ctx.channel.edit(
-        reason=f"{str(ctx.author)} set the slowmode to {cooldown}",
+    await interaction.channel.edit(
+        reason=f"{str(interaction.user)} set the slowmode to {cooldown}",
         slowmode_delay=max(cooldown, 0),
     )
 
-    await ctx.reply(
-        embed=my_ember(
+    await interaction.response.send_message(
+        embed=my_embed(
             desc=f"Slowmode set to {cooldown}"
             if cooldown > 0
             else "Slowmode disabled",
@@ -694,12 +865,16 @@ async def slowmode(
     )
 
 
-@client.command()
-@commands.cooldown(3, 10, commands.BucketType.user)
-@commands.has_permissions(ban_members=True)
+@client.tree.command()
+@discord.app_commands.describe(
+    user="The user to ban",
+    reason="The reason of the punishment",
+    delete_message_days="[OPTIONAL] Delete their messages that were sent in"
+    " [n] days. If it's not passed, no messages will be removed.",
+)
 async def ban(
-    ctx: commands.Context,
-    user: Union[discord.User, discord.Member, int],
+    interaction: discord.Interaction,
+    user: Union[discord.User, discord.Member],
     reason: str,
     delete_message_days: Optional[int] = None,
 ):
@@ -707,129 +882,118 @@ async def ban(
     [Command] Ban a user.
 
     Args:
-        ctx (commands.Context): The context
         user (Union[discord.User, discord.Member, int]): The user to ban
         reason (str): The reason
         delete_message_days (Optional[int], optional): Delete message days.\
  Defaults to None.
-
-    Raises:
-        MissingRequiredArgument: If reason is missing
-        BadArgument: If delete_message_days is not in [1,7]
     """
-    if test_user(ctx.author):
+    if test_user(interaction.user):
+        return
+    if not interaction.user.resolved_permissions.ban_members:
+        await interaction.response.send_message(
+            embed=my_embed(
+                "Not so fast! Who do you think you are? Until you can ban"
+                " members yourself, forget about banning anyone",
+                color=Color.RED,
+                footer="Basically you don't have the permission to ban"
+                " members",
+            )
+        )
         return
     if user == client.user:
-        await ctx.reply(
-            embed=my_ember(
+        await interaction.response.send_message(
+            embed=my_embed(
                 desc="After all my good work *this* is how you reward me?"
                 " What a disgrace.",
                 color=Color.ORANGE,
             )
         )
         return
-    if reason == ():
-        raise commands.MissingRequiredArgument(MyParameter("reason"))
     if isinstance(delete_message_days, int) and (
         delete_message_days < 1 or delete_message_days > 7
     ):
-        raise commands.BadArgument(
-            "delete_message_days must be between 1 and 7"
+        await interaction.response.send_message(
+            embed=my_embed("delete_message_days must be between [1,7]")
         )
-    # //if isinstance(reason, tuple):
-    # //    reason = " ".join(reason)
-    if isinstance(user, int):
-        user = await client.fetch_user(user)
-    await ctx.guild.ban(
+        return
+    await interaction.guild.ban(
         user=user,
-        reason=" ".join(reason)
-        if isinstance(reason, tuple)
-        else reason,
+        reason=reason,
         delete_message_days=delete_message_days
         if delete_message_days is not None
         else 0,
     )
     reload_db()
     tmp = (
-        db.get(str(ctx.guild.id))
-        if db.get(str(ctx.guild.id)) is not False
+        db.get(str(interaction.guild.id))
+        if db.get(str(interaction.guild.id)) is not False
         else {}
     )
     tmp[str(user.id)] = (
-        db.get(str(ctx.guild.id))[str(user.id)]
+        db.get(str(interaction.guild.id))[str(user.id)]
         if tmp.get(str(user.id)) is not None
         else {}
     )
     tmp[str(user.id)]["punishments"] = (
-        db.get(str(ctx.guild.id))[str(user.id)]["punishments"]
+        db.get(str(interaction.guild.id))[str(user.id)]["punishments"]
         if tmp.get(str(user.id)).get("punishments") is not None
         else []
     )
     tmp[str(user.id)]["punishments"].append(
         {
             "type": "ban",
-            "moderator": ctx.author.id,
-            "reason": " ".join(reason)
-            if isinstance(reason, tuple)
-            else reason,
+            "moderator": interaction.user.id,
+            "reason": reason,
             "delete_message_days": delete_message_days
             if delete_message_days is not None
             else 0,
             "time": datetime.now().timestamp(),
         }
     )
-    db.set(str(ctx.guild.id), tmp)
-    __last_punishment = tmp[str(user.id)]["punishments"][
-        len(tmp[str(user.id)]["punishments"]) - 1
-    ]
-    _reason = __last_punishment["reason"]
-    await ctx.reply(
-        embed=my_ember(desc=f"Banned {user} for reason `{_reason}`!")
+    db.set(str(interaction.guild.id), tmp)
+    await interaction.response.send_message(
+        embed=my_embed(
+            desc=f"Banned {user} for reason `{reason}`!", color=Color.OKGREEN
+        )
     )
 
 
-@client.command()
-@commands.cooldown(3, 10, commands.BucketType.user)
-@commands.has_permissions(ban_members=True)
+@client.tree.command()
+@discord.app_commands.describe(
+    user="The user to unban", reason="The reason of the unban"
+)
 async def unban(
-    ctx: commands.Context,
-    user: Union[discord.User, discord.Member, int],
+    interaction: discord.Interaction,
+    user: Union[discord.User, discord.Member],
     reason: str,
 ):
     """
     [Command] Unban a user.
 
     Args:
-        ctx (commands.Context): The context
         user (Union[discord.User, discord.Member, int]): The user to unban
         reason (str): The reason
-
-    Raises:
-        MissingRequiredArgument: If reason is missing
     """
-    if test_user(ctx.author):
+    if test_user(interaction.user):
         return
-    if user == client.user:
-        await ctx.reply(
-            embed=my_ember(desc="I'm not banned", color=Color.ORANGE)
+    if not interaction.user.resolved_permissions.ban_members:
+        await interaction.response.send_message(
+            embed=my_embed(
+                "Not so fast! Who do you think you are? Until you can ban"
+                " members yourself, forget about unbanning anyone.",
+                color=Color.RED,
+                footer="Basically you don't have the permission to ban"
+                " members",
+            )
         )
         return
-    if reason == ():
-        raise commands.MissingRequiredArgument(MyParameter("reason"))
-    if isinstance(user, int):
-        user = await client.fetch_user(user)
-    await ctx.guild.unban(
+    await interaction.guild.unban(
         user=user,
-        reason=" ".join(reason)
-        if isinstance(reason, tuple)
-        else reason,
+        reason=reason,
     )
-    _reason = (
-        (" ".join(reason)) if isinstance(reason, tuple) else (reason)
-    )
-    await ctx.reply(
-        embed=my_ember(
-            desc=f"Unbanned {user} for reason `{_reason}`!",
+    await interaction.response.send_message(
+        embed=my_embed(
+            desc=f"Unbanned {user} for reason `{reason}`!",
             color=Color.OKGREEN,
         )
     )
@@ -866,7 +1030,7 @@ async def regex(
     if punishment == "no":
         db.dadd(str(ctx.message.guild.id), ("regex", []))
         await ctx.reply(
-            embed=my_ember(desc="Deleted regex!", color=Color.OKGREEN)
+            embed=my_embed(desc="Deleted regex!", color=Color.OKGREEN)
         )
         return
     if pattern is None:
@@ -887,18 +1051,166 @@ async def regex(
     elif punishment == "kick":
         _desc = _desc.format(
             pattern,
-            ", and the user will be kicked, for"
-            " reason: `Regex matched`",
+            ", and the user will be kicked, for reason: `Regex matched`",
         )
     else:
         _desc = _desc.format(pattern, "")
     await ctx.reply(
-        embed=my_ember(
+        embed=my_embed(
             desc=_desc,
             color=Color.OKGREEN,
             title="Added regex!",
         )
     )
+
+
+@client.command()
+async def random(ctx: commands.Context):
+    await ctx.reply(str(SystemRandom().random()))
+
+
+class YTDLSource(discord.PCMVolumeTransformer):
+    def __init__(self, source, *, data, volume=0.5):
+        super().__init__(source, volume)
+        self.data = data
+        self.title = data.get("title")
+        self.url = ""
+
+    @classmethod
+    async def from_url(cls, url, *, loop=None, stream=False):
+        loop = loop or asyncio.get_event_loop()
+        data = await loop.run_in_executor(
+            None,
+            lambda: YTDL.extract_info(url, download=not stream),
+        )
+        if "entries" in data:
+            # take first item from a playlist
+            data = data["entries"][0]
+        if stream:
+            return data["title"]
+        else:
+            return YTDL.prepare_filename(data)
+
+
+# ! NOT a command
+async def play(ctx: commands.Context, url: str):
+    async with ctx.typing():
+        print(
+            f"[PLAY] {url = !r};; creating youtube_dl.YoutubeDL with"
+            f" {YTDL_FORMAT_OPTIONS!r}"
+        )
+        server: discord.Guild = ctx.message.guild
+        Path("./music_tmp").mkdir(parents=True, exist_ok=True)
+
+        with change_working_directory("./music_tmp"):
+            filename = await YTDLSource.from_url(url, loop=client.loop)
+            success = False
+            if not ctx.message.author.voice:
+                await ctx.send(
+                    f"{ctx.message.author.name} is not connected to a voice"
+                    " channel"
+                )
+                return
+            channel: Union[
+                discord.VoiceChannel, discord.StageChannel
+            ] = ctx.message.author.voice.channel
+
+            with contextlib.suppress(
+                discord.errors.ClientException
+            ):  # ? not sure why
+                await channel.connect()
+            voice_client: discord.VoiceProtocol = server.voice_client
+            for exe in EXES:
+                try:
+                    replaced = str(Path(exe).absolute())
+                    print(f"[X] [PLAYMP3] Trying {exe!r} ({replaced!r})")
+                    voice_client.play(
+                        discord.FFmpegPCMAudio(
+                            executable=replaced,
+                            source=filename,
+                            **FFMPEG_OPTIONS,
+                        )
+                    )
+                except Exception:
+                    print(f"[X] [PLAYMP3] {exe!r} did not work!")
+                    continue
+                else:
+                    print("[☑] [PLAYMP3] Successfully played mp3")
+                    success = True
+                    break
+            if not success:
+                print("[X] [PLAYMP3] Trying last resort")
+                try:
+                    if server.voice_client.is_playing():
+                        server.voice_client.stop()
+                    voice_client.play(
+                        discord.FFmpegPCMAudio(
+                            source=filename, **FFMPEG_OPTIONS
+                        )
+                    )
+                except Exception:
+                    print("[X] It didn't work")
+                    raise
+                else:
+                    print("[☑] It worked!")
+    await ctx.send(f"**Now playing:** {filename}")
+
+
+@client.command()
+async def playmp3(ctx: commands.Context, file: str):
+    with contextlib.suppress(discord.errors.ClientException):
+        await ctx.author.voice.channel.connect()
+    voice_client: discord.VoiceClient = discord.utils.get(
+        client.voice_clients, guild=ctx.guild
+    )
+
+    success = False
+    for exe in EXES:
+        try:
+            print(f"[X] [PLAYMP3] Trying {exe!r}")
+            audio_source = discord.FFmpegPCMAudio(
+                f"{file}.mp3", executable=exe
+            )
+        except Exception:
+            print("[X] [PLAYMP3] Failed to play mp3")
+            continue
+        else:
+            print("[☑] [PLAYMP3] Successfully played mp3")
+            success = True
+            break
+    if not success:
+        print("[X] [PLAYMP3] Trying last resort")
+        try:
+            audio_source = discord.FFmpegPCMAudio(f"{file}.mp3")
+        except Exception:
+            print("[X] [PLAYMP3] Didn't work")
+            raise
+        else:
+            print("[☑] [PLAYMP3] It worked!")
+
+    if voice_client.is_playing():
+        voice_client.stop()
+    voice_client.play(audio_source, after=None)
+
+
+@client.command()
+async def yell(
+    ctx: commands.Context, url: str = "https://youtu.be/6BfKZLIEzZ0"
+):
+    await play(ctx, url)
+
+
+@client.command()
+async def repeatplay(ctx: commands.Context, url: str):
+    while True:
+        await play(ctx, url)
+        try:
+            while ctx.voice_client.is_playing():
+                await asyncio.sleep(1)
+        except AttributeError:
+            if ctx.voice_client is not None:
+                raise
+            # else: pass
 
 
 @client.command()
@@ -911,7 +1223,7 @@ async def get_code(ctx: commands.Context):
     """
     if ctx.author != ctx.guild.owner:
         await ctx.reply(
-            embed=my_ember(
+            embed=my_embed(
                 "Just the owner of the server can use this command, "
                 + str(ctx.guild.owner),
                 color=Color.RED,
@@ -1026,128 +1338,31 @@ async def on_message(message: discord.Message):
     ):
         await message.delete()
         if db.get(str(message.guild.id))["regex"][1] == "kick":
-            await message.guild.kick(
-                message.author, reason="Matched regex."
-            )
+            await message.guild.kick(message.author, reason="Matched regex.")
         elif db.get(str(message.guild.id))["regex"][1] == "ban":
-            await message.guild.ban(
-                message.author, reason="Matched regex."
-            )
+            await message.guild.ban(message.author, reason="Matched regex.")
 
     await client.process_commands(message)
 
 
-backslashn = "\n"
-
-
-@client.event
-async def on_command_error(
-    ctx: commands.Context, error: commands.errors.CommandError
-):
-    """
-    On command error
-
-    Args:
-        ctx (commands.Context): The context
-        error (commands.errors.CommandError): The error.
-
-    Raises:
-        error: Reraise if the error is unknown/unexpected or DEBUG is True.\
- (It's a commands.errors.CommandError)
-    """
-    if test_user(ctx.author):
-        return
-    if isinstance(error, commands.CommandNotFound):
-        return
-    if isinstance(error, commands.MissingPermissions):
-        await ctx.reply(
-            embed=my_ember(
-                desc="Sorry, but you don't have permissions for that.",
-                color=Color.RED,
-            )
-        )
-    elif isinstance(error, commands.MissingRequiredArgument):
-        await ctx.reply(
-            embed=my_ember(
-                desc=error.args[0].capitalize(),
-                color=Color.RED,
-                footer="Please, do not abuse with these informations!",
-            )
-        )
-    elif isinstance(error, commands.BadArgument):
-        await ctx.reply(
-            embed=my_ember(
-                desc=error.args[0],
-                color=Color.RED,
-                footer="Please, do not abuse with these informations!",
-            )
-        )
-    elif (
-        isinstance(error, discord.Forbidden) and error.code == 50013
-    ) or error.args[0] == (
-        "Command raised an exception: Forbidden: 403 Forbidden (error code:"
-        " 50013): Missing Permissions"
-    ):
-        await ctx.reply(
-            embed=my_ember(
-                desc="I don't have permission to do that.",
-                color=Color.RED,
-            )
-        )
-    else:
-        # Check for sensitive information
-        tmp = next(
-            (
-                f"""Something went wrong!
-For security reasons, we can't say more.
-Please, open an issue here: {URLs.Issue.BUG}.
-Include, that we can't say details for security reasons!"""
-                for j in (
-                    error.__class__.__name__,
-                    error.__class__,
-                    error.args,
-                )
-                if environ.get("BOT_TOKEN", None) in str(j)
-            ),
-            f"""Something went wrong!
-Error: `{error.__class__.__name__}`
-If you think that this is an error that we can fix, open an issue here:\
- {URLs.Issue.BUG} and include this:
-```py
-{error.__class__ = }
-{error.__cause__ = }{backslashn + str(error.args) if DEBUG else ""}
-```
-If you help us, you will be in the CONTRIBUTORS file\
- ({URLs.File.CONTRIBUTORS})""",
-        )
-
-        # Send
-        await ctx.reply(
-            embed=my_ember(
-                desc=tmp,
-                color=Color.RED,
-                footer="Please, do not abuse with these informations!",
-            )
-        )
-        raise error
-    if DEBUG:
-        raise error
-
-
 def main():
-    """
-    Main function.
-
-    Raises:
-        KeyError: If the BOT_TOKEN env var is not set.
-    """
-    try:
-        client.run(environ["BOT_TOKEN"])
-    except KeyError as e:
-        print(
-            f"\n[ERROR] Environment variable `{e.args[0]}` is not set."
-        )
-        raise
+    if not discord.opus.is_loaded():
+        print("[X] [OPUS] Opus is not loaded. Trying to load it...")
+        try:
+            discord.opus.load_opus()
+        except Exception as e:
+            print(f"[X] [OPUS] Error while loading opus (without params): {e}")
+            try:
+                discord.opus.load_opus("opus")
+            except Exception as e:
+                print(
+                    f"[X] [OPUS] Error while loading opus (with params): {e}"
+                )
+    if discord.opus.is_loaded():
+        print("[☑] [OPUS] Opus loaded!")
+    else:
+        print("[X] [OPUS] Could not load opus!")
+    client.run(getenv("BOT_TOKEN"))
 
 
 if __name__ == "__main__":
