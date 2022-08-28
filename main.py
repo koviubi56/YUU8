@@ -661,7 +661,7 @@ async def kick(
     )
 
 
-@client.tree.command(aliases=["clean"])
+@client.tree.command()
 @discord.app_commands.describe(max_="The number of messages to remove")
 async def purge(interaction: discord.Interaction, max_: int):
     """
