@@ -1,17 +1,17 @@
 """
-Copyright (C) 2021  Koviubi56
+Copyright (C) 2022  Koviubi56
 
 This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU Affero General Public License as published
-by the Free Software Foundation, either version 3 of the License, or
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.
 
 This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Affero General Public License for more details.
+GNU General Public License for more details.
 
-You should have received a copy of the GNU Affero General Public License
+You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 # pylint: disable=too-many-lines
@@ -999,48 +999,53 @@ async def unban(
     )
 
 
-@client.command()
-@commands.has_permissions(
-    ban_members=True, kick_members=True, manage_messages=True
+@client.tree.command()
+@discord.app_commands.describe(
+    punishment="What should happen if the regex filter matches? del: Delete"
+    " the message. kick: Delete the message + kick the member. ban: Delete the"
+    " message + ban the user (forever). no: disable the regex filter."
 )
 async def regex(
-    ctx: commands.Context,
-    punishment: str,
+    interaction: discord.Interaction,
+    punishment: Literal["del", "kick", "ban", "no"],
     pattern: Optional[str] = None,
 ):
     """
     [Command] Add a regex filter.
 
     Args:
-        ctx (commands.Context): The context
-        punishment (str): The punishment
+        punishment (Literal["del", "kick", "ban", "no"]): The punishment
         pattern (Optional[str], optional): The regex pattern. Defaults to None.
-
-    Raises:
-        MissingRequiredArgument: If pattern is missing
     """
-    if test_user(ctx.author):
-        return
-    if punishment not in ["del", "kick", "ban", "no"]:
-        ctx.reply(
-            'Punishment can be "del" to delete, "kick" to delete and kick,'
-            ' "ban" to delete and ban, or "no" to delete the regex.'
-        )
+    if test_user(interaction.user):
         return
     if punishment == "no":
-        db.dadd(str(ctx.message.guild.id), ("regex", []))
-        await ctx.reply(
+        if pattern:
+            await interaction.response.send_message(
+                embed=my_embed(
+                    "There's no need to repeat the regex pattern if you want"
+                    " to delete it.",
+                    color=Color.RED,
+                )
+            )
+            return
+        db.dadd(str(interaction.guild.id), ("regex", []))
+        await interaction.response.send_message(
             embed=my_embed(desc="Deleted regex!", color=Color.OKGREEN)
         )
         return
     if pattern is None:
-        raise commands.MissingRequiredArgument(MyParameter("pattern"))
-    db.dadd(str(ctx.message.guild.id), ("regex", [pattern, "del"]))
+        await interaction.response.send_message(
+            embed=my_embed(
+                "A pattern is required. If you want to remove the pattern, use"
+                ' "no"',
+                color=Color.RED,
+            )
+        )
+        return
+    db.dadd(str(interaction.guild.id), ("regex", [pattern, "del"]))
     _desc = (
-        "If the regex `{}` matches anywhere, the message will be"
-        " deleted{}.\nIf someone (including hackers, admins and mods) changes"
-        ' the regex to "." or something else, then you can\'t turn off the'
-        " regex. For this reasons, type this command: `.get_code`."
+        "If the regex `{}` matches anywhere, the message will be deleted{}."
     )
     if punishment == "ban":
         _desc = _desc.format(
@@ -1055,7 +1060,7 @@ async def regex(
         )
     else:
         _desc = _desc.format(pattern, "")
-    await ctx.reply(
+    await interaction.response.send_message(
         embed=my_embed(
             desc=_desc,
             color=Color.OKGREEN,
@@ -1064,9 +1069,9 @@ async def regex(
     )
 
 
-@client.command()
-async def random(ctx: commands.Context):
-    await ctx.reply(str(SystemRandom().random()))
+@client.tree.command()
+async def random(interaction: discord.Interaction):
+    await interaction.response.send_message(str(SystemRandom().random()))
 
 
 class YTDLSource(discord.PCMVolumeTransformer):
@@ -1346,6 +1351,12 @@ async def on_message(message: discord.Message):
 
 
 def main():
+    print(
+        """YUU8  Copyright (C) 2022  Koviubi56
+This program comes with ABSOLUTELY NO WARRANTY.
+This is free software, and you are welcome to redistribute it
+under certain conditions."""
+    )
     if not discord.opus.is_loaded():
         print("[X] [OPUS] Opus is not loaded. Trying to load it...")
         try:
