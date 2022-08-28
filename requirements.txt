@@ -3,6 +3,7 @@ discord.py
 fastapi
 imageio_ffmpeg
 pickledb
+pynacl
 python-dotenv
 uvicorn
 youtube_dl

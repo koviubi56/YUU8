@@ -17,16 +17,19 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 # pylint: disable=too-many-lines
 import asyncio
 import contextlib
-from datetime import datetime
 import enum
+import functools
+import re
+import shutil
+import traceback
+from datetime import datetime
 from os import getcwd  # pylint: disable=no-name-in-module
 from os import chdir, environ, getenv
 from pathlib import Path
-from re import I, findall
-from secrets import SystemRandom, token_hex
+from secrets import SystemRandom, choice
 from time import time
 from traceback import print_exc
-from typing import Literal, Optional, Union
+from typing import Callable, List, Literal, Optional, Set, TypeVar, Union
 
 import aiohttp
 import discord
@@ -34,6 +37,8 @@ import pickledb  # nosec  # noqa
 import youtube_dl
 from discord.ext import commands
 from imageio_ffmpeg import get_ffmpeg_exe
+
+import statuspage
 
 with contextlib.suppress(ImportError):
     from dotenv import load_dotenv
@@ -75,9 +80,51 @@ try:
     _f = get_ffmpeg_exe()
 except RuntimeError:
     _f = r"ffmpeg.exe"
-EXES = (_f, r"ffmpeg.exe")
+EXES: Set[str] = {"ffmpeg", _f, "ffmpeg.exe"}
 youtube_dl.utils.bug_reports_message = lambda: ""
 YTDL = youtube_dl.YoutubeDL(YTDL_FORMAT_OPTIONS)
+CRASH_MESSAGE = (
+    "Who set us up the TNT?",
+    "Everything's going to plan. No, really, that was supposed to happen.",
+    "Uh... Did I do that?",
+    "Oops.",
+    "Why did you do that?",
+    "I feel sad now :(",
+    "My bad.",
+    "I'm sorry, Dave.",
+    "I let you down. Sorry :(",
+    "On the bright side, I bought you a teddy bear!",
+    "Daisy, daisy...",
+    "Oh - I know what I did wrong!",
+    "Hey, that tickles! Hehehe!",
+    "Don't be sad. I'll do better next time, I promise!",
+    "Don't be sad, have a hug! <3",
+    "I just don't know what went wrong :(",
+    "Shall we play a game?",
+    "Quite honestly, I wouldn't worry myself about that.",
+    "I bet Cylons wouldn't have this problem.",
+    "Sorry :(",
+    "Surprise! Haha. Well, this is awkward.",
+    "Would you like a cupcake?",
+    "Hi. I'm YUU8, and I'm a crashaholic.",
+    "Ooh. Shiny.",
+    "This doesn't make any sense!",
+    "Why is it breaking :(",
+    "Don't do that.",
+    "Ouch. That hurt :(",
+    "You're mean.",
+    "This is a token for 1 free hug: [~~HUG~~]",
+    "There are four lights!",
+    "But it works on my machine.",
+)
+NEW_LINE = "\n"
+try:
+    from typing import ParamSpec
+
+    P = ParamSpec("P")
+except Exception:
+    P = TypeVar("P")
+R = TypeVar("R")
 
 del _f
 
@@ -189,7 +236,6 @@ def my_embed(
     footer: Optional[str] = None,
 ) -> discord.Embed:
     """
-    **Don't forget to await! (Not this function)**
     Create an embed
 
     Args:
@@ -220,6 +266,9 @@ def my_embed(
         embed_ = discord.Embed(color=color, timestamp=datetime.now())
     if footer:
         embed_.set_footer(text=footer)
+    text = statuspage.get_text()
+    if text:
+        embed_.add_field(name=text[0], value=text[1])
     return embed_
 
 
@@ -255,7 +304,9 @@ def test_user(user: Union[discord.Member, discord.User]) -> bool:
     """
     reload_db()
     if db.get("BANNED_USERS") is False:
-        raise Exception(f'db.get("BANNED_USERS") is {db.get("BANNED_USERS")}')
+        raise RuntimeError(
+            f'db.get("BANNED_USERS") is {db.get("BANNED_USERS")}'
+        )
     return user.id in db.get("BANNED_USERS")
 
 
@@ -266,12 +317,45 @@ async def on_ready():
     print("Ready!")
 
 
-@client.tree.command()
+def slash_command(func: Callable["P", R]) -> discord.app_commands.Command:
+    @functools.wraps(func)
+    async def wrapper(
+        interaction: discord.Interaction, *args: "P.args", **kwargs: "P.kwargs"
+    ) -> R:
+        try:
+            if test_user(interaction.user):
+                return
+            return await func(interaction, *args, **kwargs)
+        except Exception:
+            report = gen_crash_report(
+                f"{func!r} ({func.__module__}.{func.__qualname__})",
+                f"Interaction: {interaction!r}\nArgs: {args!r}\nKwargs:"
+                f" {kwargs!r}",
+            )
+            if getenv("BOT_TOKEN") in report:
+                report = "<Not shown since it contains token>"
+            embed_ = my_embed(
+                title="Error. Something went wrong.",
+                desc=f"We tried everything, but we're not perfect. Please"
+                f" report it here: {URLs.Issue.BUG} with the following"
+                f" information:\n```py\n{report}\n```",
+                color=Color.RED,
+                footer="Please report it.",
+            )
+            try:
+                await interaction.response.send_message(embed=embed_)
+            except (
+                discord.errors.NotFound,
+                discord.errors.InteractionResponded,
+            ):
+                await interaction.channel.send(embed=embed_)
+
+    return client.tree.command()(wrapper)
+
+
+@slash_command
 async def ping(interaction: discord.Interaction):
     """[Command] Ping the bot."""
-    if test_user(interaction.user):
-        return
-
     # embed
     embed_ = my_embed(desc="The response time", title="Ping")
 
@@ -318,7 +402,7 @@ async def ping(interaction: discord.Interaction):
     await interaction.response.send_message(embed=embed_)
 
 
-@client.tree.command()
+@slash_command
 @discord.app_commands.describe(keyword="THe keyword to search for")
 async def unsplash(interaction: discord.Interaction, keyword: str):
     """
@@ -327,41 +411,29 @@ async def unsplash(interaction: discord.Interaction, keyword: str):
     Args:
         keyword (str): The keyword to search
     """
-    if test_user(interaction.user):
-        return
-    try:
-        async with aiohttp.ClientSession() as session:
-            url = f"https://source.unsplash.com/featured/?{keyword}"
-            # // print(url)
-            async with session.get(
-                url,
-                timeout=10,
-                verify_ssl=False,
-            ) as r:
-                if r.ok:
-                    await interaction.response.send_message(r.url)
-                else:
-                    print(r.json())
-                    await interaction.response.send_message(
-                        embed=my_embed(
-                            desc=f"**ERROR!** ({str(r.status)} |"
-                            f" {hash(r.json())})",
-                            color=Color.RED,
-                            footer=f"Please report this to {URLs.Issue.BUG}",
-                        )
+    async with aiohttp.ClientSession() as session:
+        url = f"https://source.unsplash.com/featured/?{keyword}"
+        # // print(url)
+        async with session.get(
+            url,
+            timeout=10,
+            verify_ssl=False,
+        ) as r:
+            if r.ok:
+                await interaction.response.send_message(r.url)
+            else:
+                print(r.json())
+                await interaction.response.send_message(
+                    embed=my_embed(
+                        desc=f"**ERROR!** ({str(r.status)} |"
+                        f" {hash(r.json())})",
+                        color=Color.RED,
+                        footer=f"Please report this to {URLs.Issue.BUG}",
                     )
-    except Exception:
-        print_exc()
-        await interaction.response.send_message(
-            embed=my_embed(
-                "Uh-oh. Something went wrong :(. Maybe next time? If this"
-                f" doesn't stop please open an issue here: {URLs.Issue.BUG}",
-                color=Color.RED,
-            )
-        )
+                )
 
 
-@client.tree.command()
+@slash_command
 @discord.app_commands.describe(
     desc="[OPTIONAL] The body of the embed; its description.",
     title="[OPTIONAL] The title of the embed",
@@ -418,8 +490,6 @@ async def embed(
  field3_title is passed. The 1st and 2nd fields must be provided to have a 3rd\
  field.
     """
-    if test_user(interaction.user):
-        return
     try:
         color_ = getattr(Color, color)
     except Exception:
@@ -434,12 +504,16 @@ async def embed(
             ephemeral=True,
         )
         return
+    got_text = statuspage.get_text()
     embed_ = my_embed(
         desc=desc,
         title=title,
         color=color_,
         footer="Not official message by YUU8; user-generated by"
-        f" {interaction.user}",
+        f" {interaction.user}"
+        if not got_text
+        else f"User-generated EXCEPT THE WARNING ({got_text[0]}), which is AN"
+        " OFFICIAL YUU8 WARNING",
     )
     # field1
     if (field1_title and (not field1_value)) or (
@@ -499,7 +573,7 @@ async def embed(
     await interaction.response.send_message(embed=embed_)
 
 
-@client.tree.command()
+@slash_command
 @discord.app_commands.describe(
     channel="The discord text channel that where reports should go"
 )
@@ -512,8 +586,6 @@ async def set_suggestion_channel(
     Args:
         channel (discord.TextChannel): The channel to set
     """
-    if test_user(interaction.user):
-        return
     if not interaction.user.resolved_permissions.manage_channels:
         await interaction.response.send_message(
             embed=my_embed(
@@ -538,7 +610,7 @@ async def set_suggestion_channel(
     )
 
 
-@client.tree.command()
+@slash_command
 @discord.app_commands.describe(suggestion="The suggestion")
 async def suggest(interaction: discord.Interaction, suggestion: str):
     """
@@ -547,8 +619,6 @@ async def suggest(interaction: discord.Interaction, suggestion: str):
     Args:
         suggestion (str): The suggestion
     """
-    if test_user(interaction.user):
-        return
     reload_db()
     if db.get(
         str(interaction.guild.id)
@@ -574,7 +644,7 @@ async def suggest(interaction: discord.Interaction, suggestion: str):
         await interaction.response.send_message(embed=embed_)
 
 
-@client.tree.command()
+@slash_command
 @discord.app_commands.describe(
     user="The user to kick", reason="The reason of the punishment"
 )
@@ -590,8 +660,6 @@ async def kick(
         user (Union[discord.User, discord.Member]): The user to kick
         reason (str): The reason
     """
-    if test_user(interaction.user):
-        return
     if not interaction.user.resolved_permissions.kick_members:
         await interaction.response.send_message(
             embed=my_embed(
@@ -661,7 +729,7 @@ async def kick(
     )
 
 
-@client.tree.command()
+@slash_command
 @discord.app_commands.describe(max_="The number of messages to remove")
 async def purge(interaction: discord.Interaction, max_: int):
     """
@@ -671,8 +739,6 @@ async def purge(interaction: discord.Interaction, max_: int):
         ctx (commands.Context): The context
         max_ (int): The max messages to delete
     """
-    if test_user(interaction.user):
-        return
     if not interaction.user.resolved_permissions.manage_messages:
         await interaction.response.send_message(
             embed=my_embed(
@@ -684,20 +750,10 @@ async def purge(interaction: discord.Interaction, max_: int):
             )
         )
         return
-    try:
-        int(max_)
-    except ValueError:
-        await interaction.response.send_message(
-            embed=my_embed(
-                desc="Max must be an integer number.",
-                color=Color.RED,
-            )
-        )
-        return
     reload_db()
     # 255 is a nice number. There isn't (or i don't know of) any type of API
     # limitation, that is 255. It's just a nice number.
-    if int(max_) >= 255 and interaction.user.id not in db.get("PURGE_LIMIT"):
+    if max_ >= 255 and interaction.user.id not in db.get("PURGE_LIMIT"):
         await interaction.response.send_message(
             embed=my_embed(
                 desc=f"> Don't delete the whole channel\n- YUU8\n*(If you want"
@@ -709,11 +765,8 @@ async def purge(interaction: discord.Interaction, max_: int):
             )
         )
         return
-    tmp = await interaction.channel.purge(limit=int(max_))
-    if int(max_) < 255:
-        _color = Color.OKGREEN
-    else:
-        _color = Color.YELLOW
+    tmp = await interaction.channel.purge(limit=max_)
+    _color = Color.OKGREEN if max_ < 255 else Color.YELLOW
 
     await interaction.response.send_message(
         embed=my_embed(
@@ -724,7 +777,8 @@ async def purge(interaction: discord.Interaction, max_: int):
     )
 
 
-@client.tree.command()
+@slash_command
+@discord.app_commands.describe(channel="The report channel")
 async def set_report_channel(
     interaction: discord.Interaction, channel: discord.TextChannel
 ):
@@ -734,8 +788,6 @@ async def set_report_channel(
     Args:
         channel (discord.TextChannel): The channel to set
     """
-    if test_user(interaction.user):
-        return
     if not interaction.user.resolved_permissions.manage_channels:
         await interaction.response.send_message(
             embed=my_embed(
@@ -763,7 +815,10 @@ async def set_report_channel(
     )
 
 
-@client.tree.command()
+@slash_command
+@discord.app_commands.describe(
+    user="The user you want to report", reason="The reason of the report"
+)
 async def report(
     interaction: discord.Interaction,
     user: Union[discord.User, discord.Member],
@@ -776,8 +831,6 @@ async def report(
         user (Union[discord.User, discord.Member]): The user to report
         reason (str): The reason
     """
-    if test_user(interaction.user):
-        return
     reload_db()
     if (
         db.get(str(interaction.guild.id)) is False
@@ -806,7 +859,7 @@ async def report(
     )
 
 
-@client.tree.command()
+@slash_command
 @discord.app_commands.describe(
     cooldown="The slowmode in seconds. 0 to disable. Must be between [0,21600]"
 )
@@ -819,8 +872,6 @@ async def slowmode(
     Args:
         cooldown (Optional[int], optional): The cooldown. Defaults to None.
     """
-    if test_user(interaction.user):
-        return
     if not interaction.user.resolved_permissions.manage_channels:
         await interaction.response.send_message(
             embed=my_embed(
@@ -865,7 +916,7 @@ async def slowmode(
     )
 
 
-@client.tree.command()
+@slash_command
 @discord.app_commands.describe(
     user="The user to ban",
     reason="The reason of the punishment",
@@ -887,8 +938,6 @@ async def ban(
         delete_message_days (Optional[int], optional): Delete message days.\
  Defaults to None.
     """
-    if test_user(interaction.user):
-        return
     if not interaction.user.resolved_permissions.ban_members:
         await interaction.response.send_message(
             embed=my_embed(
@@ -958,7 +1007,7 @@ async def ban(
     )
 
 
-@client.tree.command()
+@slash_command
 @discord.app_commands.describe(
     user="The user to unban", reason="The reason of the unban"
 )
@@ -974,8 +1023,6 @@ async def unban(
         user (Union[discord.User, discord.Member, int]): The user to unban
         reason (str): The reason
     """
-    if test_user(interaction.user):
-        return
     if not interaction.user.resolved_permissions.ban_members:
         await interaction.response.send_message(
             embed=my_embed(
@@ -999,11 +1046,13 @@ async def unban(
     )
 
 
-@client.tree.command()
+@slash_command
 @discord.app_commands.describe(
     punishment="What should happen if the regex filter matches? del: Delete"
     " the message. kick: Delete the message + kick the member. ban: Delete the"
-    " message + ban the user (forever). no: disable the regex filter."
+    " message + ban the user (forever). no: disable the regex filter.",
+    pattern="The regex pattern. WithOUT slashes. Will be interpreted with the"
+    " IGNORECASE flag.",
 )
 async def regex(
     interaction: discord.Interaction,
@@ -1017,8 +1066,6 @@ async def regex(
         punishment (Literal["del", "kick", "ban", "no"]): The punishment
         pattern (Optional[str], optional): The regex pattern. Defaults to None.
     """
-    if test_user(interaction.user):
-        return
     if punishment == "no":
         if pattern:
             await interaction.response.send_message(
@@ -1044,9 +1091,7 @@ async def regex(
         )
         return
     db.dadd(str(interaction.guild.id), ("regex", [pattern, "del"]))
-    _desc = (
-        "If the regex `{}` matches anywhere, the message will be deleted{}."
-    )
+    _desc = "If the regex `{}` matches anywhere, the message will be deleted{}."  # noqa
     if punishment == "ban":
         _desc = _desc.format(
             pattern,
@@ -1069,7 +1114,7 @@ async def regex(
     )
 
 
-@client.tree.command()
+@slash_command
 async def random(interaction: discord.Interaction):
     await interaction.response.send_message(str(SystemRandom().random()))
 
@@ -1091,85 +1136,93 @@ class YTDLSource(discord.PCMVolumeTransformer):
         if "entries" in data:
             # take first item from a playlist
             data = data["entries"][0]
-        if stream:
-            return data["title"]
-        else:
-            return YTDL.prepare_filename(data)
+        return data["title"] if stream else YTDL.prepare_filename(data)
 
 
 # ! NOT a command
-async def play(ctx: commands.Context, url: str):
-    async with ctx.typing():
-        print(
-            f"[PLAY] {url = !r};; creating youtube_dl.YoutubeDL with"
-            f" {YTDL_FORMAT_OPTIONS!r}"
-        )
-        server: discord.Guild = ctx.message.guild
-        Path("./music_tmp").mkdir(parents=True, exist_ok=True)
+async def _play(interaction: discord.Interaction, url: str):
+    print(
+        f"[PLAY] {url = !r};; creating youtube_dl.YoutubeDL with"
+        f" {YTDL_FORMAT_OPTIONS!r}"
+    )
+    server: discord.Guild = interaction.guild
+    while Path(".").name == "music_tmp":
+        if Path("..").name == "music_tmp":
+            shutil.rmtree(Path("."), ignore_errors=True)
+        chdir("..")
+    Path("./music_tmp").mkdir(parents=True, exist_ok=True)
 
-        with change_working_directory("./music_tmp"):
-            filename = await YTDLSource.from_url(url, loop=client.loop)
-            success = False
-            if not ctx.message.author.voice:
-                await ctx.send(
-                    f"{ctx.message.author.name} is not connected to a voice"
-                    " channel"
+    with change_working_directory("./music_tmp"):
+        filename = await YTDLSource.from_url(url, loop=client.loop)
+        if not interaction.user.voice:
+            await interaction.response.send_message(
+                embed=my_embed(
+                    f"{interaction.user} is not connected to a voice"
+                    " channel",
+                    color=Color.RED,
                 )
-                return
-            channel: Union[
-                discord.VoiceChannel, discord.StageChannel
-            ] = ctx.message.author.voice.channel
+            )
+            return
+        channel: Union[
+            discord.VoiceChannel, discord.StageChannel
+        ] = interaction.user.voice.channel
 
-            with contextlib.suppress(
-                discord.errors.ClientException
-            ):  # ? not sure why
-                await channel.connect()
-            voice_client: discord.VoiceProtocol = server.voice_client
-            for exe in EXES:
-                try:
-                    replaced = str(Path(exe).absolute())
-                    print(f"[X] [PLAYMP3] Trying {exe!r} ({replaced!r})")
-                    voice_client.play(
-                        discord.FFmpegPCMAudio(
-                            executable=replaced,
-                            source=filename,
-                            **FFMPEG_OPTIONS,
-                        )
+        with contextlib.suppress(discord.errors.ClientException):
+            await channel.connect()
+        voice_client: discord.VoiceProtocol = server.voice_client
+        for exe in EXES:
+            try:
+                replaced = str(Path(exe).absolute())
+                print(f"[X] [PLAYMP3] Trying {exe!r} ({replaced!r})")
+                if server.voice_client.is_playing():
+                    server.voice_client.stop()
+                voice_client.play(
+                    discord.FFmpegPCMAudio(
+                        executable=replaced,
+                        source=filename,
+                        **FFMPEG_OPTIONS,
                     )
-                except Exception:
-                    print(f"[X] [PLAYMP3] {exe!r} did not work!")
-                    continue
-                else:
-                    print("[☑] [PLAYMP3] Successfully played mp3")
-                    success = True
-                    break
-            if not success:
-                print("[X] [PLAYMP3] Trying last resort")
-                try:
-                    if server.voice_client.is_playing():
-                        server.voice_client.stop()
-                    voice_client.play(
-                        discord.FFmpegPCMAudio(
-                            source=filename, **FFMPEG_OPTIONS
-                        )
-                    )
-                except Exception:
-                    print("[X] It didn't work")
-                    raise
-                else:
-                    print("[☑] It worked!")
-    await ctx.send(f"**Now playing:** {filename}")
+                )
+            except Exception:
+                print(f"[X] [PLAYMP3] {exe!r} did not work!")
+                continue
+            else:
+                print("[☑] [PLAYMP3] Successfully played mp3")
+                break
+        else:
+            raise RuntimeError("No ffmpeg worked")
 
 
-@client.command()
-async def playmp3(ctx: commands.Context, file: str):
+def gen_crash_report(desc: str, custom: Optional[str] = None) -> None:
+    rv = f"""---- YUU8 crash report ----
+# {choice(CRASH_MESSAGE)}
+
+Time: {time()}
+Description: {desc}{NEW_LINE + custom if custom else ''}
+
+{traceback.format_exc()}
+"""
+    print(rv)
+    return rv
+
+
+@slash_command
+@discord.app_commands.describe(
+    file="The .mp3 file withOUT the extension [MADE FOR PERSONAL USE ONLY]"
+)
+async def playmp3(interaction: discord.Interaction, file: str):
+    """
+    [Command] Play an .mp3 file. MADE FOR PERSONAL USE ONLY!
+
+    Args:
+        file (str): The .mp3 file withOUT the extension
+    """
     with contextlib.suppress(discord.errors.ClientException):
-        await ctx.author.voice.channel.connect()
+        await interaction.user.voice.channel.connect()
     voice_client: discord.VoiceClient = discord.utils.get(
-        client.voice_clients, guild=ctx.guild
+        client.voice_clients, guild=interaction.guild
     )
 
-    success = False
     for exe in EXES:
         try:
             print(f"[X] [PLAYMP3] Trying {exe!r}")
@@ -1181,143 +1234,146 @@ async def playmp3(ctx: commands.Context, file: str):
             continue
         else:
             print("[☑] [PLAYMP3] Successfully played mp3")
-            success = True
             break
-    if not success:
-        print("[X] [PLAYMP3] Trying last resort")
-        try:
-            audio_source = discord.FFmpegPCMAudio(f"{file}.mp3")
-        except Exception:
-            print("[X] [PLAYMP3] Didn't work")
-            raise
-        else:
-            print("[☑] [PLAYMP3] It worked!")
-
+    else:
+        raise RuntimeError("No ffmpeg worked")
     if voice_client.is_playing():
         voice_client.stop()
     voice_client.play(audio_source, after=None)
+    await interaction.response.send_message(
+        embed=my_embed(
+            f"Playing `{file}`",
+            color=Color.OKGREEN,
+            footer="If there are any errors please open an issue at"
+            f" {URLs.Issue.BUG}",
+        )
+    )
 
 
-@client.command()
-async def yell(
-    ctx: commands.Context, url: str = "https://youtu.be/6BfKZLIEzZ0"
+@slash_command
+@discord.app_commands.describe(url="The YouTube video's URL")
+async def play(
+    interaction: discord.Interaction, url: str = "https://youtu.be/6BfKZLIEzZ0"
 ):
-    await play(ctx, url)
-
-
-@client.command()
-async def repeatplay(ctx: commands.Context, url: str):
-    while True:
-        await play(ctx, url)
-        try:
-            while ctx.voice_client.is_playing():
-                await asyncio.sleep(1)
-        except AttributeError:
-            if ctx.voice_client is not None:
-                raise
-            # else: pass
-
-
-@client.command()
-async def get_code(ctx: commands.Context):
     """
-    [Command] Get the code for the regex.
+    [Command] Play a YouTube video's audio
 
     Args:
-        ctx (commands.Context): The context
+        url (str, optional): The URL. Defaults to\
+ "https://youtu.be/6BfKZLIEzZ0".
     """
-    if ctx.author != ctx.guild.owner:
-        await ctx.reply(
+    # <https://regexr.com/6sq1f>
+    if not re.fullmatch(
+        r"^https:\/\/(www\.)?youtu((\.be\/[0-9a-zA-Z]+)"
+        r"|(be\.com\/watch\?v=[0-9a-zA-Z]+.*))$",
+        url,
+    ):
+        await interaction.response.send_message(
             embed=my_embed(
-                "Just the owner of the server can use this command, "
-                + str(ctx.guild.owner),
+                "I don't think so. Please gimme a YouTube URL including"
+                " the HTTPS protocol. For example:"
+                " `https://youtu.be/6BfKZLIEzZ0`",
                 color=Color.RED,
             )
         )
         return
-    db.dadd(str(ctx.guild.id), ("code", token_hex(740)))
-    dm = await ctx.guild.owner.create_dm()
-    await dm.send(
-        "This is the code for your server. This MUST be kept a secret! DO"
-        " NOT share it even with your admins, mods!\n* Disable regex (in"
-        " DM): `disable regex <SERVER ID> <CODE>` replace <SERVER ID> with"
-        " the server's ID, <CODE> with the code.\n* Generate a new code"
-        " (in DM): `new code <SERVER ID> <OLD CODE>` replace <SERVER ID>"
-        " with your server's ID, <OLD CODE> with the (old) code.\n* Remove"
-        " code (in DM): `remove code <SERVER ID> <CODE>` replace <SERVER"
-        " ID> with your server's ID, <CODE> with the code.\n\nThis is the"
-        f' code:\n```\n{db.dget(str(ctx.guild.id), "code")}\n```'
+    await interaction.response.defer(thinking=True)
+    loading = await interaction.channel.send(
+        embed=my_embed(
+            title="Loading...",
+            desc="Downloading videos can take a lot of time, so just sit back,"
+            " and relax. It can take up to 3-4 minutes. But at least you get"
+            " the best quality audio, and there's no lag; the music doesn't"
+            " stop randomly. The ETA is approx."
+            " `video_time_in_seconds * 0.27`",
+            color=Color.YELLOW,
+        )
+    )
+    await _play(interaction, url)
+    await loading.delete()
+    await interaction.followup.send(
+        embed=my_embed(
+            f"Playing {url}",
+            color=Color.OKGREEN,
+            footer="If there are any errors please open an issue at"
+            f" {URLs.Issue.BUG}",
+        )
     )
 
 
-async def on_dm(message: discord.Message):
+class RepeatplayButton(discord.ui.Button["RepeatplayView"]):
+    def __init__(self) -> None:
+        super().__init__(style=discord.ButtonStyle.red, label="Stop")
+
+    async def callback(self, interaction: discord.Interaction) -> None:
+        assert self.view
+        self.disabled = True
+        db.dadd(str(self.view.guild.id), ("stop_repeatplay", True))
+        await interaction.response.edit_message(view=self.view)
+
+
+class RepeatplayView(discord.ui.View):
+    children: List[RepeatplayButton]
+
+    def __init__(self, guild: discord.Guild) -> None:
+        super().__init__()
+        self.guild = guild
+        self.add_item(RepeatplayButton())
+
+
+@slash_command
+@discord.app_commands.describe(url="The YouTube video's URL")
+async def repeatplay(interaction: discord.Interaction, url: str):
     """
-    On DM. (If message.guild is None)
+    [Command] Play a YouTube video's audio forever
 
     Args:
-        message (discord.Message): The message
+        url (str): The URL.
     """
-    if message.content.startswith("disable regex"):
-        tmp = message.content.split(" ")
-        if (
-            db.get(str(tmp[2])) is False
-            or db.get(str(tmp[2])).get("code") is None
-            or db.dget(str(tmp[2]), "code") != tmp[3]
-        ):
-            await message.reply("No.")
-            return
-        db.dadd(str(tmp[2]), ("regex", []))
-        await message.reply(
-            "Done!\n(Note: For 69420% security you may want to"
-            " generate a new code.)"
-        )
-    if message.content.startswith("new code"):
-        tmp = message.content.split(" ")
-        if (
-            db.get(str(tmp[2])) is False
-            or db.get(str(tmp[2])).get("code") is None
-            or db.dget(str(tmp[2]), "code") != tmp[3]
-        ):
-            await message.reply("No.")
-            return
-        db.dadd(str(tmp[2]), ("code", token_hex(740)))
-        await message.reply(
-            "This is the code for your server. This MUST be kept as"
-            " a secret! DO NOT share it even with your admins, mods!\n"
-            "* Disable regex (in DM): `disable regex <SERVER ID>"
-            " <CODE>` replace <SERVER ID> with the server's ID, <CODE>"
-            " with the code.\n* Generate a new code (in DM): `new code"
-            " <OLD CODE>` replace <OLD CODE> with the (old) code.\n*"
-            " Remove code (in DM): `remove code <CODE>` replace <CODE>"
-            " with the code.\n\nThis is the code:"
-            f'\n```\n{db.dget(str(tmp[2]), "code")}\n```'
-        )
-    if message.content.startswith("remove code"):
-        tmp = message.content.split(" ")
-        if (
-            db.get(str(tmp[2])) is False
-            or db.get(str(tmp[2])).get("code") is None
-            or db.dget(str(tmp[2]), "code") != tmp[3]
-        ):
-            await message.reply("No.")
-            return
-        # yes, I know that this is unnecessary, but I want 101% security
-        else:
-            tmp2 = db.get(str(tmp[2]))
-            del tmp2["code"]
-            db.set(str(tmp[2]), tmp2)
-            await message.reply(
-                "This is the code for your server. This MUST be kept a"
-                " secret! DO NOT share it even with your admins, mods!\n*"
-                " Disable regex (in DM): `disable regex <SERVER ID>"
-                " <CODE>` replace <SERVER ID> with the server's ID, <CODE>"
-                " with the code.\n* Generate a new code (in DM): `new code"
-                " <OLD CODE>` replace <OLD CODE> with the (old) code.\n*"
-                " Remove code (in DM): `remove code <CODE>` replace <CODE>"
-                " with the code.\n\nThis is the code:"
-                f'\n```\n{db.dget(str(tmp[2]), "code")}\n```'
+    # <https://regexr.com/6sq1f>
+    if not re.fullmatch(
+        r"^https:\/\/(www\.)?youtu((\.be\/[0-9a-zA-Z]+)"
+        r"|(be\.com\/watch\?v=[0-9a-zA-Z]+.*))$",
+        url,
+    ):
+        await interaction.response.send_message(
+            embed=my_embed(
+                "I don't think so. Please gimme a YouTube URL including"
+                " the HTTPS protocol. For example:"
+                " `https://youtu.be/6BfKZLIEzZ0`",
+                color=Color.RED,
             )
-    return
+        )
+        return
+    if not interaction.user.voice:
+        await interaction.response.send_message(
+            embed=my_embed(
+                f"{interaction.user} is not connected to a voice channel",
+                color=Color.RED,
+            )
+        )
+        return
+    await interaction.response.send_message(
+        embed=my_embed(f"Playing {url} forever.", color=Color.OKGREEN),
+        view=RepeatplayView(interaction.guild),
+    )
+    while_ = True
+    while while_:
+        await _play(interaction, url)
+        try:
+            while interaction.guild.voice_client.is_playing():
+                with contextlib.suppress(KeyError):
+                    if db.dget(str(interaction.guild.id), "stop_repeatplay"):
+                        db.dadd(
+                            str(interaction.guild.id),
+                            ("stop_repeatplay", False),
+                        )
+                        while_ = False
+                        break
+                await asyncio.sleep(1)
+        except AttributeError:
+            if interaction.guild.voice_client is not None:
+                raise
 
 
 @client.event
@@ -1330,15 +1386,21 @@ async def on_message(message: discord.Message):
     """
     reload_db()
     if message.guild is None:
-        await on_dm(message)
+        message.reply(
+            embed=my_embed(
+                "YUU8 does not accept commands or anything from DMs.",
+                color=Color.ORANGE,
+                footer=IFERROR,
+            )
+        )
         return
     if (
         str(message.guild.id) in db.db
         and db.get(str(message.guild.id)).get("regex")
-        and findall(
+        and re.search(
             db.get(str(message.guild.id))["regex"][0],
             message.content,
-            I,
+            re.I,
         )
     ):
         await message.delete()
@@ -1347,7 +1409,7 @@ async def on_message(message: discord.Message):
         elif db.get(str(message.guild.id))["regex"][1] == "ban":
             await message.guild.ban(message.author, reason="Matched regex.")
 
-    await client.process_commands(message)
+    # // await client.process_commands(message)
 
 
 def main():
