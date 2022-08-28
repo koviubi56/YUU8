@@ -118,12 +118,6 @@ CRASH_MESSAGE = (
     "But it works on my machine.",
 )
 NEW_LINE = "\n"
-try:
-    from typing import ParamSpec
-
-    P = ParamSpec("P")
-except Exception:
-    P = TypeVar("P")
 R = TypeVar("R")
 
 del _f
@@ -317,11 +311,9 @@ async def on_ready():
     print("Ready!")
 
 
-def slash_command(func: Callable["P", R]) -> discord.app_commands.Command:
+def slash_command(func: Callable[..., R]) -> discord.app_commands.Command:
     @functools.wraps(func)
-    async def wrapper(
-        interaction: discord.Interaction, *args: "P.args", **kwargs: "P.kwargs"
-    ) -> R:
+    async def wrapper(interaction: discord.Interaction, *args, **kwargs) -> R:
         try:
             if test_user(interaction.user):
                 return
