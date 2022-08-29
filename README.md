@@ -6,17 +6,4 @@
 
 YUU8 is yet another general purpose discord bot.
 
-## It can do
-
-* Check every message with regex (`.regex <PUNISHMENT> <REGEX>`)
-* Search on Unsplash (`.unsplash <KEYWORD>`)
-* Slowmode (`.slowmode [COOLDOWN]`)
-* Report people (`.report <USER> <REASON>`, `.set_report_channel <CHANNEL>`)
-* Kick (`.kick <USER> <REASON>`)
-* (Un)ban (`.ban <USER> <REASON> [DELETE MESSAGE DAYS]`)
-* Purge messages (`.clear <MESSAGES>`, `.purge <MESSAGES>`)
-* Let users suggest something (`.suggest <SUGGESTION>`, `.set_suggestion_channel <CHANNEL>`)
-<!-- ! This MUST be the last one -->
-* Create custom embeds (`.embed <TITLE> <FIELD TITLE/NAME> <FIELD VALUE>`)
-
-The bot is in (pre) alpha/beta so there will be [new features](https://github.com/koviubi56/YUU8/projects/1#column-15140296)!
+The bot is in pre-alpha so there will be [new features](https://github.com/koviubi56/YUU8/projects/1#column-15140296)!
