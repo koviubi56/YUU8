@@ -846,7 +846,7 @@ async def report(
     ):
         await interaction.response.send_message(
             embed=my_embed(
-                desc="This server isn't have a report channel",
+                desc="This server doesn't have a report channel",
                 color=Color.RED,
             )
         )
@@ -1074,6 +1074,8 @@ async def regex(
         punishment (Literal["del", "kick", "ban", "no"]): The punishment
         pattern (Optional[str], optional): The regex pattern. Defaults to None.
     """
+    if db.get(str(interaction.guild.id)) is False:
+        db.set(str(interaction.guild.id), {})
     if punishment == "no":
         if pattern:
             await interaction.response.send_message(
@@ -1326,6 +1328,8 @@ class RepeatplayButton(discord.ui.Button["RepeatplayView"]):
     async def callback(self, interaction: discord.Interaction) -> None:
         assert self.view
         self.disabled = True
+        if db.get(str(self.view.guild.id)) is False:
+            db.set(str(self.view.guild.id), {})
         db.dadd(str(self.view.guild.id), ("stop_repeatplay", True))
         await interaction.response.edit_message(view=self.view)
 
