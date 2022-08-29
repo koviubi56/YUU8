@@ -1162,28 +1162,36 @@ async def _play(interaction: discord.Interaction, url: str):
 
     with change_working_directory("./music_tmp"):
         filename = await YTDLSource.from_url(url, loop=client.loop)
-        if not interaction.user.voice:
+    if not interaction.user.voice:
+        try:
             await interaction.response.send_message(
                 embed=my_embed(
-                    f"{interaction.user} is not connected to a voice"
-                    " channel",
+                    f"{interaction.user} is not connected to a voice channel",
                     color=Color.RED,
                 )
             )
-            return
-        channel: Union[
-            discord.VoiceChannel, discord.StageChannel
-        ] = interaction.user.voice.channel
+        except (discord.errors.NotFound, discord.errors.InteractionResponded):
+            await interaction.channel.send(
+                embed=my_embed(
+                    f"{interaction.user} is not connected to a voice channel",
+                    color=Color.RED,
+                )
+            )
+        return 1
+    channel: Union[
+        discord.VoiceChannel, discord.StageChannel
+    ] = interaction.user.voice.channel
 
-        with contextlib.suppress(discord.errors.ClientException):
-            await channel.connect()
-        voice_client: discord.VoiceProtocol = server.voice_client
-        for exe in EXES:
-            try:
-                replaced = str(Path(exe).absolute())
-                print(f"[X] [PLAYMP3] Trying {exe!r} ({replaced!r})")
-                if server.voice_client.is_playing():
-                    server.voice_client.stop()
+    with contextlib.suppress(discord.errors.ClientException):
+        await channel.connect()
+    voice_client: discord.VoiceProtocol = server.voice_client
+    for exe in EXES:
+        try:
+            replaced = str(Path(exe).absolute())
+            print(f"[X] [PLAYMP3] Trying {exe!r} ({replaced!r})")
+            if server.voice_client.is_playing():
+                server.voice_client.stop()
+            with change_working_directory("./music_tmp"):
                 voice_client.play(
                     discord.FFmpegPCMAudio(
                         executable=replaced,
@@ -1191,14 +1199,14 @@ async def _play(interaction: discord.Interaction, url: str):
                         **FFMPEG_OPTIONS,
                     )
                 )
-            except Exception:
-                print(f"[X] [PLAYMP3] {exe!r} did not work!")
-                continue
-            else:
-                print("[☑] [PLAYMP3] Successfully played mp3")
-                break
+        except Exception:
+            print(f"[X] [PLAYMP3] {exe!r} did not work!")
+            continue
         else:
-            raise RuntimeError("No ffmpeg worked")
+            print("[☑] [PLAYMP3] Successfully played mp3")
+            break
+    else:
+        raise RuntimeError("No ffmpeg worked")
 
 
 def gen_crash_report(desc: str, custom: Optional[str] = None) -> None:
@@ -1297,16 +1305,18 @@ async def play(
             color=Color.YELLOW,
         )
     )
-    await _play(interaction, url)
+    rv = await _play(interaction, url)
     await loading.delete()
-    await interaction.followup.send(
-        embed=my_embed(
-            f"Playing {url}",
-            color=Color.OKGREEN,
-            footer="If there are any errors please open an issue at"
-            f" {URLs.Issue.BUG}",
+    if rv == 1:
+        await interaction.followup.send(
+            embed=my_embed("Not connected to a voice channel", color=Color.RED)
         )
-    )
+    else:
+        embed_ = my_embed(f"Playing {url}", color=Color.OKGREEN)
+        await interaction.followup.send(
+            embed=embed_,
+            view=PlayView(interaction.guild, embed_, url),
+        )
 
 
 class RepeatplayButton(discord.ui.Button["RepeatplayView"]):
@@ -1327,6 +1337,124 @@ class RepeatplayView(discord.ui.View):
         super().__init__()
         self.guild = guild
         self.add_item(RepeatplayButton())
+
+
+class Pause(discord.ui.Button["PlayView"]):
+    def __init__(self) -> None:
+        super().__init__(
+            style=discord.ButtonStyle.blurple, label="Pause", emoji="\u23f8"
+        )
+
+    async def callback(self, interaction: discord.Interaction) -> None:
+        assert self.view
+        self.view.guild.voice_client.pause()
+        self.view.is_paused = True
+        self.disabled = True
+        self.style = discord.ButtonStyle.secondary
+        self.view.children[1].disabled = False
+        self.view.children[1].style = discord.ButtonStyle.blurple
+        self.view.embed.color = Color.BLURPLE
+        await interaction.response.edit_message(
+            view=self.view, embed=self.view.embed
+        )
+
+
+class Resume(discord.ui.Button["PlayView"]):
+    def __init__(self) -> None:
+        super().__init__(
+            style=discord.ButtonStyle.secondary,
+            label="Resume",
+            emoji="\u25b6",
+            disabled=True,
+        )
+
+    async def callback(self, interaction: discord.Interaction) -> None:
+        assert self.view
+        self.view.guild.voice_client.resume()
+        self.view.is_paused = False
+        self.disabled = True
+        self.style = discord.ButtonStyle.secondary
+        self.view.children[0].disabled = False
+        self.view.children[0].style = discord.ButtonStyle.blurple
+        self.view.embed.color = Color.OKGREEN
+        await interaction.response.edit_message(
+            view=self.view, embed=self.view.embed
+        )
+
+
+class RepeatOne(discord.ui.Button["PlayView"]):
+    def __init__(self) -> None:
+        super().__init__(
+            style=discord.ButtonStyle.blurple,
+            label="Repeat this song",
+            emoji="\U0001f502",
+        )
+
+    async def callback(self, interaction: discord.Interaction) -> None:
+        assert self.view
+        self.view.guild.voice_client.stop()
+        self.view.disable_everything()
+        await repeatplay.callback(interaction, self.view.url)
+
+
+class Stop(discord.ui.Button["PlayView"]):
+    def __init__(self) -> None:
+        super().__init__(
+            style=discord.ButtonStyle.red,
+            label="Stop",
+            emoji="\u23f9",
+        )
+
+    async def callback(self, interaction: discord.Interaction) -> None:
+        assert self.view
+        self.view.guild.voice_client.stop()
+        self.view.disable_everything(except_eject=True)
+        await interaction.response.edit_message(
+            view=self.view, embed=self.view.embed
+        )
+
+
+class Eject(discord.ui.Button["PlayView"]):
+    def __init__(self) -> None:
+        super().__init__(
+            style=discord.ButtonStyle.red,
+            label="Stop & Disconnect",
+            emoji="\u23cf",
+        )
+
+    async def callback(self, interaction: discord.Interaction) -> None:
+        assert self.view
+        await self.view.guild.voice_client.disconnect()
+        self.view.disable_everything()
+        await interaction.response.edit_message(
+            view=self.view, embed=self.view.embed
+        )
+
+
+class PlayView(discord.ui.View):
+    children: List[discord.ui.Button["PlayView"]]
+
+    def __init__(
+        self, guild: discord.Guild, embed_: discord.Embed, url: str
+    ) -> None:
+        super().__init__()
+        self.guild = guild
+        self.embed = embed_
+        self.url = url
+        self.add_item(Pause())
+        self.add_item(Resume())
+        self.add_item(RepeatOne())
+        self.add_item(Stop())
+        self.add_item(Eject())
+        self.is_paused: bool = False
+
+    def disable_everything(self, except_eject: bool = False) -> None:
+        for butt in (
+            (self.children[:-1]) if (except_eject) else (self.children)
+        ):
+            butt.style = discord.ButtonStyle.secondary
+            butt.disabled = True
+        self.embed.color = Color.BLACK
 
 
 @slash_command
@@ -1370,18 +1498,24 @@ async def repeatplay(interaction: discord.Interaction, url: str):
         await _play(interaction, url)
         try:
             while interaction.guild.voice_client.is_playing():
+                await asyncio.sleep(1)
                 with contextlib.suppress(KeyError):
-                    if db.dget(str(interaction.guild.id), "stop_repeatplay"):
+                    if (
+                        db.dget(str(interaction.guild.id), "stop_repeatplay")
+                        is True
+                    ):
                         db.dadd(
                             str(interaction.guild.id),
                             ("stop_repeatplay", False),
                         )
                         while_ = False
                         break
-                await asyncio.sleep(1)
+            if not while_:
+                break
         except AttributeError:
             if interaction.guild.voice_client is not None:
                 raise
+    await interaction.guild.voice_client.disconnect()
 
 
 @client.event
