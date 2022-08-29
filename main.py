@@ -60,7 +60,7 @@ client = commands.Bot(
     owner_id=510548663496474660,
     intents=intents,
 )
-db = pickledb.load("database.db", True)
+db = pickledb.load(Path("database.db").resolve().__fspath__(), True)
 YTDL_FORMAT_OPTIONS = {
     "format": "bestaudio/best",
     "restrictfilenames": True,
