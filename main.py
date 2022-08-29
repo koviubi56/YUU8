@@ -326,21 +326,37 @@ def slash_command(func: Callable[..., R]) -> discord.app_commands.Command:
             )
             if getenv("BOT_TOKEN") in report:
                 report = "<Not shown since it contains token>"
-            embed_ = my_embed(
-                title="Error. Something went wrong.",
-                desc=f"We tried everything, but we're not perfect. Please"
-                f" report it here: {URLs.Issue.BUG} with the following"
-                f" information:\n```py\n{report}\n```",
-                color=Color.RED,
-                footer="Please report it.",
-            )
             try:
-                await interaction.response.send_message(embed=embed_)
-            except (
-                discord.errors.NotFound,
-                discord.errors.InteractionResponded,
-            ):
-                await interaction.channel.send(embed=embed_)
+                embed_ = my_embed(
+                    title="Error. Something went wrong.",
+                    desc=f"We tried everything, but we're not perfect. Please"
+                    f" report it here: {URLs.Issue.BUG} with the following"
+                    f" information:\n```py\n{report}\n```",
+                    color=Color.RED,
+                    footer="Please report it.",
+                )
+            except Exception:
+                message = (
+                    "**Error. Something went wrong.**\nWe tried everything,"
+                    " but we're not perfect. Please report it here:"
+                    f" {URLs.Issue.BUG} with the following information:"
+                    f"\n```py\n{report}\n```",
+                )
+                try:
+                    await interaction.response.send_message(message)
+                except (
+                    discord.errors.NotFound,
+                    discord.errors.InteractionResponded,
+                ):
+                    await interaction.channel.send(message)
+            else:
+                try:
+                    await interaction.response.send_message(embed=embed_)
+                except (
+                    discord.errors.NotFound,
+                    discord.errors.InteractionResponded,
+                ):
+                    await interaction.channel.send(embed=embed_)
 
     return client.tree.command()(wrapper)
 
