@@ -317,7 +317,7 @@ def slash_command(func: Callable[..., R]) -> discord.app_commands.Command:
         try:
             if test_user(interaction.user):
                 return
-            return await func(interaction, *args, **kwargs)
+            await func(interaction, *args, **kwargs)
         except Exception:
             report = gen_crash_report(
                 f"{func!r} ({func.__module__}.{func.__qualname__})",
@@ -446,7 +446,8 @@ async def unsplash(interaction: discord.Interaction, keyword: str):
     desc="[OPTIONAL] The body of the embed; its description.",
     title="[OPTIONAL] The title of the embed",
     color="[OPTIONAL] The color of the embed. Must be one of:"
-    f" {', '.join(map(lambda co: co.name, Color))}",
+    # // f" {', '.join(map(lambda co: co.name, Color))}",
+    f" {', '.join([co.name for co in Color])}",
     field1_title="[OPTIONAL] The title of the 1st field. Required if"
     " field1_value is passed.",
     field1_value="[OPTIONAL] The value of the 1st field. Required if"
@@ -503,9 +504,9 @@ async def embed(
     except Exception:
         await interaction.response.send_message(
             embed=my_embed(
-                f'Well idk what "{color}"'
-                " is. Please choose from"
-                f" {', '.join(map(lambda co: co.name, Color))}",
+                f'Well idk what "{color}" is. Please choose from'
+                # // f" {', '.join(map(lambda co: co.name, Color))}",
+                f" {', '.join((co.name for co in Color))}",
                 color=Color.RED,
                 footer=IFERROR,
             ),
@@ -1187,6 +1188,7 @@ async def _play(interaction: discord.Interaction, url: str):
     with contextlib.suppress(discord.errors.ClientException):
         await channel.connect()
     voice_client: discord.VoiceProtocol = server.voice_client
+    success = False
     for exe in EXES:
         try:
             replaced = str(Path(exe).absolute())
@@ -1203,12 +1205,13 @@ async def _play(interaction: discord.Interaction, url: str):
                 )
         except Exception:
             print(f"[X] [PLAYMP3] {exe!r} did not work!")
-            continue
         else:
             print("[☑] [PLAYMP3] Successfully played mp3")
+            success = True
             break
-    else:
+    if not success:
         raise RuntimeError("No ffmpeg worked")
+    return 0
 
 
 def gen_crash_report(desc: str, custom: Optional[str] = None) -> None:
@@ -1241,6 +1244,7 @@ async def playmp3(interaction: discord.Interaction, file: str):
         client.voice_clients, guild=interaction.guild
     )
 
+    success = False
     for exe in EXES:
         try:
             print(f"[X] [PLAYMP3] Trying {exe!r}")
@@ -1249,11 +1253,11 @@ async def playmp3(interaction: discord.Interaction, file: str):
             )
         except Exception:
             print("[X] [PLAYMP3] Failed to play mp3")
-            continue
         else:
             print("[☑] [PLAYMP3] Successfully played mp3")
+            success = True
             break
-    else:
+    if not success:
         raise RuntimeError("No ffmpeg worked")
     if voice_client.is_playing():
         voice_client.stop()
