@@ -23,8 +23,7 @@ import re
 import shutil
 import traceback
 from datetime import datetime
-from os import getcwd  # pylint: disable=no-name-in-module
-from os import chdir, environ, getenv
+from os import chdir, environ, getcwd, getenv, system
 from pathlib import Path
 from secrets import SystemRandom, choice
 from time import time
@@ -1585,7 +1584,13 @@ under certain conditions."""
         print("[☑] [OPUS] Opus loaded!")
     else:
         print("[X] [OPUS] Could not load opus!")
-    client.run(getenv("BOT_TOKEN"))
+    try:
+        client.run(getenv("BOT_TOKEN"))
+    except discord.errors.HTTPException:
+        if environ.get("KEEPALIVE", "0") == "1":
+            system("kill 1")
+        else:
+            raise
 
 
 if __name__ == "__main__":
