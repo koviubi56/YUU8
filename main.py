@@ -1237,6 +1237,14 @@ async def playmp3(interaction: discord.Interaction, file: str):
     Args:
         file (str): The .mp3 file withOUT the extension
     """
+    if not interaction.user.voice:
+        await interaction.channel.send(
+            embed=my_embed(
+                f"{interaction.user} is not connected to a voice channel",
+                color=Color.RED,
+            )
+        )
+        return
     with contextlib.suppress(discord.errors.ClientException):
         await interaction.user.voice.channel.connect()
     voice_client: discord.VoiceClient = discord.utils.get(
@@ -1497,15 +1505,21 @@ async def repeatplay(interaction: discord.Interaction, url: str):
         )
         return
     await interaction.response.send_message(
-        embed=my_embed(f"Playing {url} forever.", color=Color.OKGREEN),
+        embed=my_embed(
+            f"Playing {url} forever.",
+            color=Color.OKGREEN,
+        ),
         view=RepeatplayView(interaction.guild),
     )
     while_ = True
     while while_:
-        await _play(interaction, url)
+        rv = await _play(interaction, url)
+        if rv == 1:
+            while_ = False
+            break
         try:
+            await asyncio.sleep(1)
             while interaction.guild.voice_client.is_playing():
-                await asyncio.sleep(1)
                 with contextlib.suppress(KeyError):
                     if (
                         db.dget(str(interaction.guild.id), "stop_repeatplay")
