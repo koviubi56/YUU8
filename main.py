@@ -317,7 +317,7 @@ def slash_command(func: Callable[..., R]) -> discord.app_commands.Command:
             if test_user(interaction.user):
                 return
             if not interaction.guild:
-                interaction.channel.send(
+                await interaction.channel.send(
                     my_embed(
                         title="Warning!",
                         desc="YUU8 officially does NOT support commands thru"
