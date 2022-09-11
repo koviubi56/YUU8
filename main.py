@@ -1558,6 +1558,8 @@ async def on_message(message: discord.Message):
     Args:
         message (_type_): The message
     """
+    if message.author == client.user:
+        return
     reload_db()
     if message.guild is None:
         await message.reply(
