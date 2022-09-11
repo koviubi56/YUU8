@@ -316,6 +316,17 @@ def slash_command(func: Callable[..., R]) -> discord.app_commands.Command:
         try:
             if test_user(interaction.user):
                 return
+            if not interaction.guild:
+                interaction.channel.send(
+                    my_embed(
+                        title="Warning!",
+                        desc="YUU8 officially does NOT support commands thru"
+                        " DMs, and some commands may NOT work thru DMs! If a"
+                        " command does NOT work thru DMs do NOT report it!",
+                        color=Color.ORANGE,
+                        footer="Do NOT report issues"
+                    )
+                )
             await func(interaction, *args, **kwargs)
         except Exception:
             report = gen_crash_report(
