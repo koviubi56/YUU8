@@ -1560,7 +1560,7 @@ async def on_message(message: discord.Message):
     """
     reload_db()
     if message.guild is None:
-        message.reply(
+        await message.reply(
             embed=my_embed(
                 "YUU8 does not accept commands or anything from DMs.",
                 color=Color.ORANGE,
