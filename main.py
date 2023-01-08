@@ -1626,7 +1626,7 @@ async def timestamp(interaction: discord.Interaction, timediff: str) -> str:
 
     the_datetime = datetime.now()
     the_datetime += delta
-    timestamp = the_datetime.timestamp()
+    timestamp = int(the_datetime.timestamp())
     await interaction.response.send_message(
         f"""`<t:{timestamp}:R>` <t:{timestamp}:R>
 `<t:{timestamp}:D>` <t:{timestamp}:D>
