@@ -22,7 +22,7 @@ import functools
 import re
 import shutil
 import traceback
-from datetime import datetime
+from datetime import datetime, timedelta
 from os import chdir, environ, getcwd, getenv, system
 from pathlib import Path
 from secrets import SystemRandom, choice
@@ -324,7 +324,7 @@ def slash_command(func: Callable[..., R]) -> discord.app_commands.Command:
                         " DMs, and some commands may NOT work thru DMs! If a"
                         " command does NOT work thru DMs do NOT report it!",
                         color=Color.ORANGE,
-                        footer="Do NOT report issues"
+                        footer="Do NOT report issues",
                     )
                 )
             await func(interaction, *args, **kwargs)
@@ -1548,6 +1548,92 @@ async def repeatplay(interaction: discord.Interaction, url: str):
             if interaction.guild.voice_client is not None:
                 raise
     await interaction.guild.voice_client.disconnect()
+
+
+TIME_STUFF = {
+    "s",
+    "m",
+    "min",
+    "h",
+    "d",
+    "w",
+    "mo",
+    "y",
+}
+
+
+@slash_command
+async def timestamp(interaction: discord.Interaction, timediff: str) -> str:
+    parts = []
+    current = ["", ""]
+    currently = "numbers"
+    for ch in timediff:
+        if ch.isnumeric():
+            if currently == "letters":
+                if current[1] not in TIME_STUFF:
+                    await interaction.response.send_message(
+                        embed=my_embed(
+                            f"{current[1]} is unknown", color=Color.RED
+                        )
+                    )
+                    return
+                parts.append(current)
+                current = ["", ""]
+            currently = "numbers"
+            current[0] += ch
+        else:
+            currently = "letters"
+            try:
+                current[0] = float(current[0])
+            except ValueError:
+                await interaction.response.send_message(
+                    embed=my_embed(f"{current[0]} is invalid", color=Color.RED)
+                )
+                return
+            current[1] += ch
+
+    if not isinstance(parts[-1][0], float):
+        await interaction.response.send_message(
+            embed=my_embed(
+                f"{parts[-1][0]} is missing a unit", color=Color.RED
+            )
+        )
+        return
+    if parts[-1][1] not in TIME_STUFF:
+        await interaction.response.send_message(
+            embed=my_embed(f"{parts[-1][1]} is unknown", color=Color.RED)
+        )
+        return
+
+    delta = timedelta()
+    for part in parts:
+        if part[1] == "s":
+            delta._seconds += part[0]
+        elif part[1] in ("m", "min"):
+            delta._seconds += part[0] * 60
+        elif part[1] == "h":
+            delta._seconds += part[0] * 60 * 60
+        elif part[1] == "d":
+            delta._days += part[0]
+        elif part[1] == "w":
+            delta._days += part[0] * 7
+        elif part[1] == "mo":
+            delta._days += part[0] * 4 * 7
+        elif part[1] == "y":
+            delta._days += part[0] * 365
+        else:
+            raise ValueError(parts)
+
+    the_datetime = datetime.now()
+    the_datetime += delta
+    timestamp = the_datetime.timestamp()
+    interaction.response.send_message(
+        f"""`<t:{timestamp}:R>` <t:{timestamp}:R>
+`<t:{timestamp}:D>` <t:{timestamp}:D>
+`<t:{timestamp}:T>` <t:{timestamp}:T>
+`<t:{timestamp}:t>` <t:{timestamp}:t>
+`<t:{timestamp}:F>` <t:{timestamp}:F>"""
+    )
 
 
 @client.event
