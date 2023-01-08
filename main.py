@@ -1608,19 +1608,19 @@ async def timestamp(interaction: discord.Interaction, timediff: str) -> str:
     delta = timedelta()
     for part in parts:
         if part[1] == "s":
-            delta._seconds += part[0]
+            delta = delta + timedelta(seconds=part[0])
         elif part[1] in ("m", "min"):
-            delta._seconds += part[0] * 60
+            delta = delta + timedelta(minutes=part[0])
         elif part[1] == "h":
-            delta._seconds += part[0] * 60 * 60
+            delta = delta + timedelta(hours=part[0])
         elif part[1] == "d":
-            delta._days += part[0]
+            delta = delta + timedelta(days=part[0])
         elif part[1] == "w":
-            delta._days += part[0] * 7
+            delta = delta + timedelta(weeks=part[0])
         elif part[1] == "mo":
-            delta._days += part[0] * 4 * 7
+            delta = delta + timedelta(days=part[0] * 30)
         elif part[1] == "y":
-            delta._days += part[0] * 365
+            delta = delta + timedelta(days=part[0] * 365)
         else:
             raise ValueError(parts)
 
