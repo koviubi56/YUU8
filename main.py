@@ -1621,6 +1621,8 @@ async def timestamp(
     # get the time delta
     delta = timedelta()
     for part in parts:
+        if part == ["", ""]:
+            continue
         if part[1] == "s":
             delta = delta + timedelta(seconds=part[0])
         elif part[1] in ("m", "min"):
