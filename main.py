@@ -1673,9 +1673,9 @@ async def timestamp(
         )
 
     if exact_time:
-        timestamp_ = timestamp_exact(exact_time, interaction)
+        timestamp_ = await timestamp_exact(exact_time, interaction)
     else:
-        timestamp_ = timestamp_timediff(timediff, interaction)
+        timestamp_ = await timestamp_timediff(timediff, interaction)
 
     if timestamp_ is None:
         return None
