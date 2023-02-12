@@ -1562,10 +1562,9 @@ TIME_STUFF = {
 }
 
 
-@slash_command
-async def timestamp(
-    interaction: discord.Interaction, timediff: str = ""
-) -> None:
+async def timestamp_timediff(
+    timediff: str, interaction: discord.Interaction
+) -> Optional[int]:
     parts = [["", ""]]
     currently = "numbers"
     for ch in timediff:
@@ -1576,11 +1575,12 @@ async def timestamp(
                 if (
                     parts[-1][1] not in TIME_STUFF
                 ):  # check that the last part is OK
-                    return await interaction.response.send_message(
+                    await interaction.response.send_message(
                         embed=my_embed(
                             f"{parts[-1][1]} is unknown", color=Color.RED
                         )
                     )
+                    return None
                 # create the new part
                 parts.append(["", ""])
             # we're in numbers
@@ -1594,11 +1594,12 @@ async def timestamp(
             try:
                 parts[-1][0] = float(parts[-1][0])
             except ValueError:
-                return await interaction.response.send_message(
+                await interaction.response.send_message(
                     embed=my_embed(
                         f"{parts[-1][0]} is invalid", color=Color.RED
                     )
                 )
+                return None
             # add the letter
             parts[-1][1] += ch
 
@@ -1607,16 +1608,18 @@ async def timestamp(
         # we're converting to float() in [else: (it it's a letter)], so if it
         # isn't a float, then there were no letters; there isn't a unit!
         if not isinstance(parts[-1][0], float):
-            return await interaction.response.send_message(
+            await interaction.response.send_message(
                 embed=my_embed(
                     f"{parts[-1][0]} is missing a unit", color=Color.RED
                 )
             )
+            return None
         # check that unit is known
         if parts[-1][1] not in TIME_STUFF:
-            return await interaction.response.send_message(
+            await interaction.response.send_message(
                 embed=my_embed(f"{parts[-1][1]} is unknown", color=Color.RED)
             )
+            return None
 
     # get the time delta
     delta = timedelta()
@@ -1642,7 +1645,41 @@ async def timestamp(
 
     the_datetime = datetime.now()
     the_datetime += delta
-    timestamp_ = int(the_datetime.timestamp())
+    return int(the_datetime.timestamp())
+
+
+async def timestamp_exact(
+    exact_time: str, interaction: discord.Interaction
+) -> Optional[int]:
+    try:
+        return datetime.fromisoformat(exact_time).timestamp()
+    except Exception:
+        await interaction.response.send_message(
+            embed=my_embed("Exact time is invalid", color=Color.RED)
+        )
+        return None
+
+
+@slash_command
+async def timestamp(
+    interaction: discord.Interaction, timediff: str = "", exact_time: str = ""
+) -> None:
+    if (timediff != "") and (exact_time != ""):
+        return await interaction.response.send_message(
+            embed=my_embed(
+                "timediff and exact_time are mutually exclusive.",
+                color=Color.RED,
+            )
+        )
+
+    if exact_time:
+        timestamp_ = timestamp_exact(exact_time, interaction)
+    else:
+        timestamp_ = timestamp_timediff(timediff, interaction)
+
+    if timestamp_ is None:
+        return None
+
     return await interaction.response.send_message(
         f"""`<t:{timestamp_}:R>` <t:{timestamp_}:R>
 `<t:{timestamp_}:D>` <t:{timestamp_}:D>
