@@ -1652,7 +1652,7 @@ async def timestamp_exact(
     exact_time: str, interaction: discord.Interaction
 ) -> Optional[int]:
     try:
-        return datetime.fromisoformat(exact_time).timestamp()
+        return int(datetime.fromisoformat(exact_time).timestamp())
     except Exception:
         await interaction.response.send_message(
             embed=my_embed("Exact time is invalid", color=Color.RED)
