@@ -7,10 +7,6 @@ package = "setup_cfg_fmt"
 args = "--include-version-classifiers"
 
 [[lemming.formatters]]
-package = "yesqa"
-# args = "{path}"
-
-[[lemming.formatters]]
 package = "isort"
 args = "--profile black {path}"
 
@@ -18,7 +14,3 @@ args = "--profile black {path}"
 package = "flake8"
 args = "--count --exclude *venv* --show-source --statistics --extend-ignore=W503,S101 --extend-exclude=example.py {path}"
 also_install = ["flake8-bandit"]
-
-[[lemming.linters]]
-package = "pyroma"
-args = "{path}"

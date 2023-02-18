@@ -1,6 +1,6 @@
+import datetime
 import enum
 from typing import Any, Dict, List, Optional, Tuple
-import datetime
 
 import requests
 

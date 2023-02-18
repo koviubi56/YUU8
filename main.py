@@ -71,7 +71,7 @@ YTDL_FORMAT_OPTIONS = {
     "no_warnings": not DEBUG,
     "verbose": DEBUG,
     "default_search": "auto",
-    "source_address": "0.0.0.0",
+    "source_address": "0.0.0.0",  # noqa: S104
     # bind to ipv4 since ipv6 addresses cause issues sometimes
 }
 FFMPEG_OPTIONS = {"options": "-vn"}
@@ -142,7 +142,9 @@ if environ.get("KEEPALIVE", "0") == "1":
         return 200
 
     Thread(
-        target=lambda: uvicorn.run(app, host="0.0.0.0", port=8000),
+        target=lambda: uvicorn.run(
+            app, host="0.0.0.0", port=8000  # noqa: S104
+        ),
         daemon=True,
     ).start()
 
@@ -1754,7 +1756,7 @@ under certain conditions."""
         client.run(getenv("BOT_TOKEN"))
     except discord.errors.HTTPException:
         if environ.get("KEEPALIVE", "0") == "1":
-            system("kill 1")
+            system("kill 1")  # noqa: S605,S607,DUO106
         else:
             raise
 

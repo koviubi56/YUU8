@@ -2,17 +2,14 @@
 # Use "-U"!
 flake8-2020
 flake8-alfred
-flake8-bugbear
 flake8-builtins
 flake8-comprehensions
 flake8-debugger
 flake8-django
 flake8-eradicate
 flake8-fixme
-flake8-logging-format
 flake8-pep3101
 flake8-printf-formatting
-flake8-pyi
 flake8-pytest-style
 flake8-return
 flake8-scrapy
@@ -28,7 +25,6 @@ flake8-implicit-str-concat
 flake8-expression-complexity
 flake8-use-fstring
 flake8-length
-flake8-copyright
 flake8-rst
 flake8-polyfill
 flake8-codes
