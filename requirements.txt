@@ -8,3 +8,4 @@ python-dotenv
 requests
 uvicorn
 youtube_dl
+setuptools>=65.5.1 # not directly required, pinned by Snyk to avoid a vulnerability
